@@ -1,0 +1,70 @@
+<!doctype html>
+<meta charset="utf-8">
+<html>
+<head>
+  <title>Content Warning</title>
+  <style>
+    body
+    {
+      text-align: center;
+    }
+
+    .button
+    {
+      display: inline-block;
+      font-size: 22pt;
+      padding: 5px;
+      margin: 5px;
+      border: solid #000 1px;
+      border-radius: 3px;
+    }
+
+    .button:hover
+    {
+      border-color: #aaa;
+      background: #eee;
+    }
+
+    .button_back
+    {
+      display: none;
+    }
+
+    .message
+    {
+      margin-left: 10%;
+      max-width: 80%;
+      margin-bottom: 30px;
+      font-size: 14pt;
+    }
+  </style>
+  <script>
+    function go()
+    {
+      window.location="index2.htm";
+    }
+
+    function back()
+    {
+      window.history.go(-1);
+    }
+
+    window.onload = function()
+    {
+      if (window.history.length > 1)
+      {
+        document.querySelector('.button_back').style.display = 'inline-block';
+      }
+    }
+  </script>
+</head>
+<body>
+  <h1>⚠️Content Warning⚠️</h1>
+  
+  <div class='message'>This site is a work in progress and is a direct copy of <a href="https://turn-me-into-a-girl.com/">turn-me-into-a-girl.com</a> with all instances of girl, woman, feminine, etc changed to boy, man, masculine, etc. I've quadruple checked everything but it's still possible I missed an instance or two. I've updated the site from a pastel pink color scheme to a pastel blue one but much of the original styling remains. This means the site prominently features cursive writing and hearts (albeit now blue hearts instead of pink ones). The articles linked on the site have been left unchanged. The majority are written for all readers but a few assume that the reader is a woman or transfem. If you think any of this may make you uncomfortable, please consider backing out.</div>
+    
+  <div class='button button_back' onclick='back()'>Nevermind. Take me back.</div>
+  <div class='button' onclick='go()'>That's ok. Let me in!</div>
+
+</body>
+</html>
