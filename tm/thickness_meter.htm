@@ -18,12 +18,13 @@ var start = function()
     document.querySelector('.settings_panel').style.display = 'None';
     document.querySelector('.stop_button').style.display = 'Inline';
 
-    NumBins = document.querySelector('.num_bins_box').value;
     IntensityThreshold = document.querySelector('.intenisty_threshold_box').value;
     ColorChangeThreshold = document.querySelector('.color_change_threshold_box').value;
+    NumBins = document.querySelector('.num_bins_box').value;
+    RangeLimit = document.querySelector('.range_limit_box').value;
     ThinColor = document.querySelector('.thin_color_box').value;
     ThickColor = document.querySelector('.thick_color_box').value;
-    document.cookie = 'TMSet='+ [SETTINGS_VERSION, NumBins, IntensityThreshold, ColorChangeThreshold, ThinColor, ThickColor].join(',');
+    document.cookie = 'TMSet='+ [SETTINGS_VERSION, IntensityThreshold, ColorChangeThreshold, NumBins, RangeLimit, ThinColor, ThickColor].join(',');
 
     var ctx = new AudioContext();
     var mic = ctx.createMediaStreamSource(stream);
@@ -37,14 +38,15 @@ var start = function()
       callback: (features) => {
         var peaks = 0;
         var mels = features.mfcc;
-        for (var i=1; i<(mels.length-1); ++i)
+        var max_range = (RangeLimit/100)*(mels.length-1);
+        for (var i=1; i<max_range; ++i)
         {
           if ((mels[i] < IntensityThreshold) && (mels[i] < mels[i-1]) && (mels[i] < mels[i+1]))
           {
             ++peaks;
           }
         }
-        var thickness = (100*peaks)/(NumBins/3);
+        var thickness = (100*peaks)/(RangeLimit*NumBins/300);
         window.gauge.style.width = thickness+'%';
         window.gauge.style.background = thickness < ColorChangeThreshold ? ThinColor : ThickColor;
 
@@ -100,7 +102,8 @@ var stop = function()
 {
   document.querySelector('.settings_panel').style.display = 'Inline';
   document.querySelector('.stop_button').style.display = 'None';
-  window.stream.getTracks().forEach(function(track) {
+  window.stream.getTracks().forEach(function(track)
+  {
     track.stop();
   });
   window.analyzer.stop();
@@ -111,6 +114,7 @@ window.onload = function()
   NumBins = 100;
   IntensityThreshold = -4;
   ColorChangeThreshold = 21.2;
+  RangeLimit = 100;
   ThinColor = 'green';
   ThickColor = 'red';
 
@@ -122,18 +126,20 @@ window.onload = function()
     cookie = cookie.slice(0, idx);
   }
   cookie = cookie.split(',');
-  if (cookie[0] == SETTINGS_VERSION && cookie.length == 6)
+  if (cookie[0] == SETTINGS_VERSION && cookie.length == 7)
   {
-    NumBins = cookie[1];
-    IntensityThreshold = cookie[2];
-    ColorChangeThreshold = cookie[3];
-    ThinColor = cookie[4];
-    ThickColor = cookie[5];
+    IntensityThreshold = cookie[1];
+    ColorChangeThreshold = cookie[2];
+    NumBins = cookie[3];
+    RangeLimit = cookie[4];
+    ThinColor = cookie[5];
+    ThickColor = cookie[6];
   }
 
   document.querySelector('.num_bins_box').value = NumBins;
   document.querySelector('.intenisty_threshold_box').value = IntensityThreshold;
   document.querySelector('.color_change_threshold_box').value = ColorChangeThreshold;
+  document.querySelector('.range_limit_box').value = RangeLimit;
   document.querySelector('.thin_color_box').value = ThinColor;
   document.querySelector('.thick_color_box').value = ThickColor;
 }
@@ -157,6 +163,7 @@ window.onload = function()
   Intensity Threshold: <input type='text' class='intenisty_threshold_box'/><br><br>
   Color Change Threshold: <input type='text' class='color_change_threshold_box'/><br><br>
   Number of Bins: <input type='text' class='num_bins_box'/><br><br>
+  Range Limit: <input type='text' class='range_limit_box'/><br><br>
   Thin Color: <input type='text' class='thin_color_box'/><br><br>
   Thick Color: <input type='text' class='thick_color_box'/><br><br>
   <input type='button' value='Start' onclick='start()'/>
@@ -165,12 +172,13 @@ window.onload = function()
 <div class='gauge'></div>
 <h1>Help</h1>
 Thickness Meter is an app which can be used to roughly guage the thickness of your voice when talking. For best results, try to avoid background noise. See <a href='https://www.youtube.com/watch?v=1PNnBRBfOVY'>this video</a> if you're not already familiar with vocal thickness.<br><br>
-There are a number of settings which can be used to configure the meter. Press the Start button to save your settings and begin measuring thichkness. Once started, the Start button will be replaced with a Stop button which can be used to stop the meter and return to the settings panel. While the meter is running, whenever you speak, a green bar will be shown. The bar will increase in length with the thichkness of your voice i.e. a short bar will be shown for a thin voice and a long bar will be shown for a thick voice. If the thickness passes a threshold, the bar will change color from green to red. If the bar turns red frequently, this indicates that you are likely using a thicker voice, however, some syllables may cause it to flash red even when your voice is thin so only frequent, conistent flashing of red should be used as an indicator of thickness.<br><br>
-The meter will likely require some calibration for it to work with your voice and microphone. Start the meter and try saying "AAAAH" for a few seconds with both a thin and thick voice. The bar should be shorter and green when you are using a thin voice and longer and flashing red when you use a thick voice. The following settings are available from the settings panel:<br>
+There are a number of settings which can be used to configure the meter. Press the Start button to save your settings and begin measuring thichkness. Once started, the Start button will be replaced with a Stop button which can be used to stop the meter and return to the settings panel. While the meter is running, whenever you speak, a green bar will be shown. The bar will increase in length with the thichkness of your voice i.e. a short bar will be shown for a thin voice and a long bar will be shown for a thick voice. If the thickness passes a threshold, the bar will change color from green to red. If the bar turns red frequently, this indicates that you are likely using a thicker voice, however, some syllables may cause it to flash red even when your voice is thin so only frequent, conistent flashing of red should be used as an indicator of thickness. Unvoiced sounds (those that don't vibrate the vocal cords) have an "infinite thichkness" and may cause the meter to show a high thichkness even if your voice is otherwise thin; only intances where the bar flashes on voiced sounds should be of concern. In English, the unvoiced sounds include S, F, Sh, C/K, T, Ch and P.<br><br>
+The meter will likely require some calibration for it to work with your voice and microphone. Start the meter and try saying "EEEEEE" for a few seconds with both a thin and thick voice. The bar should be shorter and green when you are using a thin voice and longer and flashing red when you use a thick voice. The following settings are available from the settings panel:<br>
 <ul>
 <li>Intensity Threshold - Controls the max intensity for a frequency spike to be counted. If the bar's length changes with the thichkness of your voice, don't change this setting. If it doesn't, try slowly increasing and decreasing this value by smaller and smaller increments (e.g. 2, then 1, then 0.5, etc) until the bar length matches the thickness of your voice.</li>
 <li>Color Change Threshold - Controls at what threshold the bar's color changes from green to red. Can be any number between 0 and 100. Only change this if the bar isn't changing color at the right time.</li>
 <li>Number of Bins - Controls how many "bins" the frequency spectrum is broken into when processing sound. Only change this if changing the other options isn't working. Larger values may give more acurate results but will require more processing power from your device.</li>
+<li>Range Limit - Limits the max range of frequencies the meter will use. Can be any number from 0 to 100. The default value, 100, uses 100% of the frequency spectrum, efictivly disabling the limit. A value of 60 would use only the bottom 60%  of the spectrum. Voiced sounds primarily use the lower end of the frequency spectrum and unvoiced ones primarily use the upper end so this limit can be used to partially filter out unvoiced sounds but, as voiced and unvoiced sounds use overlapping frequencies, setting the value too high won't filter out all unvoiced sounds and setting it too low will filter out some voiced sounds. As such, this option is set to 100 to disable it by default.
 <li>Thin Color - The color of the bar when the meter hears a thin voice</li>
 <li>Thick Color - The color of the bar when the meter hears a thick voice</li>
 </ul>
