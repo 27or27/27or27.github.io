@@ -35,7 +35,21 @@ var start = function()
       bufferSize: 256,
       featureExtractors: ['mfcc'],
       callback: (features) => {
-        var count = 0;
+        var peaks = 0;
+        var mels = features.mfcc;
+        for (var i=1; i<(mels.length-1); ++i)
+        {
+          if ((mels[i] < IntensityThreshold) && (mels[i] < mels[i-1]) && (mels[i] < mels[i-(-1)]))
+          {
+            ++peaks;
+          }
+        }
+        var thickness = (100*peaks)/(NumBins/3);
+        window.gauge.style.width = thickness+'%';
+        window.gauge.style.background = thickness < ColorChangeThreshold ? ThinColor : ThickColor;
+
+        // Second prototype; included for reference
+        /*var count = 0;
         for (mel of features.mfcc)
         {
           if (mel < IntensityThreshold)
@@ -44,9 +58,9 @@ var start = function()
           }
         }
         window.gauge.style.width = (100*count/NumBins)+'%';
-        window.gauge.style.background = count < (ColorChangeThreshold*NumBins/100) ? ThinColor : ThickColor;
+        window.gauge.style.background = count < (ColorChangeThreshold*NumBins/100) ? ThinColor : ThickColor;*/
         
-        // An old prototype; included for reference
+        // First prototype; included for reference
         /*var spectrum = features.amplitudeSpectrum;
         var width = 0;
         var avg = 0;
@@ -150,7 +164,7 @@ window.onload = function()
 <input class='stop_button' type='button' value='Stop' onclick='stop()'/>
 <div class='gauge'></div>
 <h1>Help</h1>
-Thickness Meter is an app which can be used to roughly guage the thickness of your voice when talking. See <a href='https://www.youtube.com/watch?v=1PNnBRBfOVY'>this video</a> if you're not already familiar with vocal thickness.<br><br>
+FIXME: Help text - Thickness Meter is an app which can be used to roughly guage the thickness of your voice when talking. See <a href='https://www.youtube.com/watch?v=1PNnBRBfOVY'>this video</a> if you're not already familiar with vocal thickness.<br><br>
 There are a number of settings which can be used to configure the meter. Press the Start button to save your settings and begin measuring thichkness. Once started, the Start button will be replaced with a Stop button which can be used to stop the meter and return to the settings panel. While the meter is running, whenever you speak, a green bar will be shown. The bar will increase in length with the thichkness of your voice i.e. a short bar will be shown for a thin voice and a long bar will be shown for a thick voice. If the thickness passes a threshold, the bar will change color from green to red. If the bar turns red frequently, this indicates that you are likely using a thicker voice, however, some syllables may cause it to flash red even when your voice is thin so only frequent flashing of red should be used as an indicator of thickness.<br><br>
 The meter will likely require some calibration for it to work with your voice and microphone. Start the meter and try saying "AAAAH" for a few seconds with both a thin and thick voice. The bar should be shorter and green when you are using a thin voice and longer and flashing red when you use a thick voice. The following settings are available from the settings panel:<br>
 <ul>
