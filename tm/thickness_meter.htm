@@ -27,6 +27,7 @@ var start = function()
 
     var ctx = new AudioContext();
     var mic = ctx.createMediaStreamSource(stream);
+    window.stream = stream;
     Meyda.numberOfMFCCCoefficients = NumBins;
     window.analyzer = Meyda.createMeydaAnalyzer({
       audioContext: ctx,
@@ -85,6 +86,9 @@ var stop = function()
 {
   document.querySelector('.settings_panel').style.display = 'Inline';
   document.querySelector('.stop_button').style.display = 'None';
+  window.stream.getTracks().forEach(function(track) {
+    track.stop();
+  });
   window.analyzer.stop();
 }
 
