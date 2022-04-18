@@ -40,14 +40,6 @@ var start = function()
     VeryThickColor = document.querySelector('.very_thick_color_box').value;
     document.cookie = 'TMSet='+ [SETTINGS_VERSION, IntensityThreshold, FirstColorChangeThreshold, SecondColorChangeThreshold, NumBins, RangeLimit, ThinColor, ThickColor, VeryThickColor].join(',');
 
-    //window.ThinColor = color_str_to_rgb(ThinColor);
-    //window.ThickColor = color_str_to_rgb(ThickColor);
-    //window.VeryThickColor = color_str_to_rgb(VeryThickColor);
-    window.ThinColor = ThinColor;
-    window.ThickColor = ThickColor;
-    window.VeryThickColor = VeryThickColor;
-    
-
     var ctx = new AudioContext();
     var mic = ctx.createMediaStreamSource(stream);
     window.stream = stream;
@@ -309,17 +301,17 @@ a:visited
 <canvas class='graph'></canvas>
 <h1>Help</h1>
 Thickness Meter is an app which can be used to roughly guage the thickness of your voice when talking. For best results, try to avoid background noise. See <a href='https://www.youtube.com/watch?v=1PNnBRBfOVY'>this video</a> if you're not already familiar with vocal thickness.<br><br>
-When you first start the app, you will be presented with the settings pane and a Start button. Press the Start button to save your settings and begin measuring thickness. Once started, the Start button will be replaced with a Stop button which can be used to stop the meter and return to the settings panel. While the meter is running, whenever you speak, a green bar will be shown. The bar will increase in length with the thickness of your voice i.e. a short bar will be shown for a thin voice and a long bar will be shown for a thick voice. If the thickness passes a threshold, the bar will change color from green to red. If the bar turns red frequently, this indicates that you are likely using a thicker voice, however, some syllables may cause it to flash red even when your voice is thin so only frequent, conistent flashing of red should be used as an indicator of thickness. Unvoiced sounds (those that don't vibrate the vocal cords) have an "infinite thickness" and may cause the meter to show a high thickness even if your voice is otherwise thin; only intances where the bar flashes on voiced sounds should be of concern. In English, the unvoiced sounds include S, F, Sh, C/K, T, Ch and P.<br><br>
-The meter may require some calibration for it to work with your voice and microphone. Start the meter and try saying "EEEEEE" for a few seconds with both a thin and thick voice. The bar should be shorter and green when you are using a thin voice and longer and flashing red when you use a thick voice. The following settings are available from the settings panel:<br>
+When you first start the app, you will be presented with the settings panel and a Start button. Press the Start button to save your settings and begin measuring thickness. Once started, the Start button will be replaced with a Stop button which can be used to stop the meter and return to the settings panel. While the meter is running, a scrolling graph will be shown. As you speak, the thickness of your voice will be plotted on the graph. The lower on the graph speech is plotted, the thinner it is and the higher on the graph it is plotted the thicker it is. The graph is divided into three color-coded bands. From bottom to top they are: green for thin voiced sounds, red for thick voiced sounds and blue for unvoiced sounds. Unvoiced sounds (those that don't vibrate the vocal cords) have an "infinite thickness" regardless of how thin your voice otherwise is. In English, the unvoiced sounds include S, F, Sh, C/K, T, Ch and P. When saying words that include unvoiced sounds, your thickness will pass through the red "thick" band as your voice transitions from between the voiced and unvoiced parts of the word. As such, seeing some red marks on the graph is normal even when you are using a thin voice. Only a large number of red marks or having red marks apear when making voiced sounds is an indicator of vocal thickness. Try using the meter with both a thin and a thick voice to see how each look on the graph for your voice.<br><br>
+The meter may require some calibration for it to work with your voice and microphone. Start the meter and try saying "EEEEEE" for a few seconds with both a thin and thick voice. The line on the graph should be low and green when you are using a thin voice and high and red when you use a thick voice. The following settings are available from the settings panel:<br>
 <ul>
-<li>Intensity Threshold - Controls the max intensity for a frequency spike to be counted. If the bar's length changes with the thickness of your voice, don't change this setting. If it doesn't, try slowly increasing and decreasing this value by smaller and smaller increments (e.g. 2, then 1, then 0.5, etc) until the bar length matches the thickness of your voice.</li>
-<li>First Color Change Threshold - Controls at what threshold the bar's color changes from green to red. Can be any number between 0 and 100. Only change this if the bar isn't turning red when you are using a thick voice or is turning red when you are using a thin voice.</li>
-<li>Second Color Change Threshold - Controls when the bar changes color from red to blue. Can be any number between 0 and 100. Only change this if the bar isn't turning blue when you are making unvoiced sounds or if it is turning blue when you are making thick, voiced sounds.
+<li>Intensity Threshold - Controls the max intensity for a frequency spike to be counted. If the line's height changes with the thickness of your voice, don't change this setting. If it doesn't, try slowly increasing and decreasing this value by smaller and smaller increments (e.g. 2, then 1, then 0.5, etc) until the line's height matches the thickness of your voice.</li>
+<li>First Color Change Threshold - Controls at what threshold the line's color changes from green to red. Can be any number between 0 and 100. Only change this if the line isn't turning red when you are using a thick voice or is turning red when you are using a thin voice for voiced sounds.</li>
+<li>Second Color Change Threshold - Controls when the bar changes color from red to blue. Can be any number between 0 and 100. Only change this if the bar isn't turning blue when you are making unvoiced sounds or if it is turning blue when you are making voiced sounds.
 <li>Number of Bins - Controls how many "bins" the frequency spectrum is broken into when processing sound. Only change this if changing the other options isn't working. Larger values may give more acurate results but will require more processing power from your device.</li>
 <li>Range Limit - Limits the max range of frequencies the meter will use. Can be any number from 0 to 100. The default value, 100, uses 100% of the frequency spectrum, efictivly disabling the limit. A value of 60 would use only the bottom 60%  of the spectrum. Voiced sounds primarily use the lower end of the frequency spectrum and unvoiced ones primarily use the upper end so this limit can be used to partially filter out unvoiced sounds but, as voiced and unvoiced sounds use overlapping frequencies, setting the value too high won't filter out all unvoiced sounds and setting it too low will filter out some voiced sounds. As such, this option is set to 100 to disable it by default.
-<li>Thin Color - The color of the bar when the meter hears a thin voice</li>
-<li>Thick Color - The color of the bar when the meter hears a thick voice</li>
-<li>Very Thick Color - The color of the bar when the meter hears a very thick voice i.e. when making unvoiced sounds.</li>
+<li>Thin Color - The color of the line when the meter hears a thin voice</li>
+<li>Thick Color - The color of the line when the meter hears a thick voice</li>
+<li>Very Thick Color - The color of the line when the meter hears a very thick voice i.e. when making unvoiced sounds.</li>
 </ul>
 You can use this app offline by saving a copy of it through your browser (Ctrl + S on most desktop browsers). The source for this app is contained within a single file and this app is open source; see below for licensing details.
 <br><br>
