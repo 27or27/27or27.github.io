@@ -118,8 +118,8 @@ var initialize_graph = function()
   var ctx = window.graph.getContext('2d');
   window.graph_ctx = ctx;
 
-  graph.width = 2*window.innerWidth/3;
-  graph.height = 2*window.innerHeight/3;
+  graph.width = 4*window.innerWidth/5;
+  graph.height = 4*window.innerHeight/5;
 
   window.requestAnimationFrame(redraw_graph)
 }
@@ -198,7 +198,7 @@ window.onload = function()
 {
   NumBins = 100;
   IntensityThreshold = -4;
-  FirstColorChangeThreshold = 19.5;
+  FirstColorChangeThreshold = 16.5;
   SecondColorChangeThreshold = 27.5;
   RangeLimit = 100;
   ThinColor = 'green';
