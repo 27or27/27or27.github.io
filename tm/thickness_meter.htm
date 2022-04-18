@@ -5,13 +5,24 @@
 <script>
 var SETTINGS_VERSION = 1;
 
+var color_str_to_rgb = function (str)
+{
+    var ctx = document.createElement("canvas").getContext("2d");
+    ctx.fillStyle = str;
+    return [parseInt(ctx.fillStyle.slice(1,3), 16),
+            parseInt(ctx.fillStyle.slice(3,5), 16),
+            parseInt(ctx.fillStyle.slice(5), 16)];
+};
+
 var start = function()
 {
-  window.gauge = document.querySelector('.gauge');
-
   navigator.getUserMedia = navigator.getUserMedia
                         || navigator.webkitGetUserMedia
                         || navigator.mozGetUserMedia;
+
+  window.graph = document.querySelector('.graph');
+  window.graph_ctx = window.graph.getContext('2d');
+  window.thickness_buffer = [];
 
   navigator.getUserMedia({video:false,audio:true},function(stream)
   {
@@ -27,6 +38,10 @@ var start = function()
     ThickColor = document.querySelector('.thick_color_box').value;
     VeryThickColor = document.querySelector('.very_thick_color_box').value;
     document.cookie = 'TMSet='+ [SETTINGS_VERSION, IntensityThreshold, FirstColorChangeThreshold, SecondColorChangeThreshold, NumBins, RangeLimit, ThinColor, ThickColor, VeryThickColor].join(',');
+
+    window.ThinColor = color_str_to_rgb(ThinColor);
+    window.ThickColor = color_str_to_rgb(ThickColor);
+    window.VeryThickColor = color_str_to_rgb(VeryThickColor);
 
     var ctx = new AudioContext();
     var mic = ctx.createMediaStreamSource(stream);
@@ -49,8 +64,7 @@ var start = function()
           }
         }
         var thickness = Math.min(100, (100*peaks)/(RangeLimit*NumBins/300));
-        window.gauge.style.width = thickness+'%';
-        window.gauge.style.background = thickness < SecondColorChangeThreshold ? (thickness < FirstColorChangeThreshold ? ThinColor : ThickColor) : VeryThickColor;
+        add_point_and_redraw_graph(thickness);
 
         // Second prototype; included for reference
         /*var count = 0;
@@ -98,6 +112,40 @@ var start = function()
     });
     analyzer.start();
   }, console.log);
+}
+
+var add_point_and_redraw_graph = function(thickness)
+{
+  var thickness_buffer = window.thickness_buffer;
+  thickness_buffer.push(thickness);
+
+  var graph = window.graph;
+  graph.width = 2*window.innerWidth/3;
+  graph.height = 2*window.innerHeight/3;
+
+  while(thickness_buffer.length > graph.width)
+  {
+    thickness_buffer.shift();
+  }
+
+  var ctx = window.graph_ctx;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, graph.width, graph.height);
+  
+  var data = ctx.getImageData(0, 0, graph.width, graph.height);
+  for (var i=0; i<thickness_buffer.length; ++i)
+  {
+    var thickness = thickness_buffer[i];
+    var idx = (i + (graph.height-1-Math.round(graph.height*thickness/100)) * graph.width) * 4;
+    var color = thickness < SecondColorChangeThreshold ? (thickness < FirstColorChangeThreshold ? ThinColor : ThickColor) : VeryThickColor;
+
+    data.data[idx + 0] = color[0];
+    data.data[idx + 1] = color[1];
+    data.data[idx + 2] = color[2];
+    data.data[idx + 3] = 255;
+  }
+
+  ctx.putImageData(data, 0, 0);
 }
 
 var stop = function()
@@ -170,11 +218,20 @@ var toggle_license = function()
 }
 </script>
 <style>
-.gauge
+body
 {
-  margin-top: 10px;
-  width: 0px;
-  height: 50px;
+  background: #22242B;
+  color: #FFF;
+}
+
+a:link
+{
+  color: #519CF8
+}
+
+a:visited
+{
+  color: #9D3EC9
 }
 
 .stop_button
@@ -200,14 +257,14 @@ var toggle_license = function()
   Very Thick Color: <input type='text' class='very_thick_color_box'/><br><br>
   <input type='button' value='Start' onclick='start()'/>
 </div>
-<input class='stop_button' type='button' value='Stop' onclick='stop()'/>
-<div class='gauge'></div>
+<input class='stop_button' type='button' value='Stop' onclick='stop()'/><br><br>
+<canvas class='graph' width='0' height='0'></canvas>
 <h1>Help</h1>
 Thickness Meter is an app which can be used to roughly guage the thickness of your voice when talking. For best results, try to avoid background noise. See <a href='https://www.youtube.com/watch?v=1PNnBRBfOVY'>this video</a> if you're not already familiar with vocal thickness.<br><br>
-When you first start the app, you will be presented with the settings pane and a Start button. Press the Start button to save your settings and begin measuring thichkness. Once started, the Start button will be replaced with a Stop button which can be used to stop the meter and return to the settings panel. While the meter is running, whenever you speak, a green bar will be shown. The bar will increase in length with the thichkness of your voice i.e. a short bar will be shown for a thin voice and a long bar will be shown for a thick voice. If the thickness passes a threshold, the bar will change color from green to red. If the bar turns red frequently, this indicates that you are likely using a thicker voice, however, some syllables may cause it to flash red even when your voice is thin so only frequent, conistent flashing of red should be used as an indicator of thickness. Unvoiced sounds (those that don't vibrate the vocal cords) have an "infinite thichkness" and may cause the meter to show a high thichkness even if your voice is otherwise thin; only intances where the bar flashes on voiced sounds should be of concern. In English, the unvoiced sounds include S, F, Sh, C/K, T, Ch and P.<br><br>
+When you first start the app, you will be presented with the settings pane and a Start button. Press the Start button to save your settings and begin measuring thickness. Once started, the Start button will be replaced with a Stop button which can be used to stop the meter and return to the settings panel. While the meter is running, whenever you speak, a green bar will be shown. The bar will increase in length with the thickness of your voice i.e. a short bar will be shown for a thin voice and a long bar will be shown for a thick voice. If the thickness passes a threshold, the bar will change color from green to red. If the bar turns red frequently, this indicates that you are likely using a thicker voice, however, some syllables may cause it to flash red even when your voice is thin so only frequent, conistent flashing of red should be used as an indicator of thickness. Unvoiced sounds (those that don't vibrate the vocal cords) have an "infinite thickness" and may cause the meter to show a high thickness even if your voice is otherwise thin; only intances where the bar flashes on voiced sounds should be of concern. In English, the unvoiced sounds include S, F, Sh, C/K, T, Ch and P.<br><br>
 The meter may require some calibration for it to work with your voice and microphone. Start the meter and try saying "EEEEEE" for a few seconds with both a thin and thick voice. The bar should be shorter and green when you are using a thin voice and longer and flashing red when you use a thick voice. The following settings are available from the settings panel:<br>
 <ul>
-<li>Intensity Threshold - Controls the max intensity for a frequency spike to be counted. If the bar's length changes with the thichkness of your voice, don't change this setting. If it doesn't, try slowly increasing and decreasing this value by smaller and smaller increments (e.g. 2, then 1, then 0.5, etc) until the bar length matches the thickness of your voice.</li>
+<li>Intensity Threshold - Controls the max intensity for a frequency spike to be counted. If the bar's length changes with the thickness of your voice, don't change this setting. If it doesn't, try slowly increasing and decreasing this value by smaller and smaller increments (e.g. 2, then 1, then 0.5, etc) until the bar length matches the thickness of your voice.</li>
 <li>First Color Change Threshold - Controls at what threshold the bar's color changes from green to red. Can be any number between 0 and 100. Only change this if the bar isn't turning red when you are using a thick voice or is turning red when you are using a thin voice.</li>
 <li>Second Color Change Threshold - Controls when the bar changes color from red to blue. Can be any number between 0 and 100. Only change this if the bar isn't turning blue when you are making unvoiced sounds or if it is turning blue when you are making thick, voiced sounds.
 <li>Number of Bins - Controls how many "bins" the frequency spectrum is broken into when processing sound. Only change this if changing the other options isn't working. Larger values may give more acurate results but will require more processing power from your device.</li>
