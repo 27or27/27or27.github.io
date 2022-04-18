@@ -118,8 +118,7 @@ var initialize_graph = function()
   var ctx = window.graph.getContext('2d');
   window.graph_ctx = ctx;
 
-  graph.width = 4*window.innerWidth/5;
-  graph.height = 4*window.innerHeight/5;
+  window.onresize();
 
   window.requestAnimationFrame(redraw_graph)
 }
@@ -188,9 +187,10 @@ var stop = function()
 
 window.onresize = function()
 {
-  if (window.running)
+  if (window.graph)
   {
-    initialize_graph();
+    graph.width = 4*window.innerWidth/5;
+    graph.height = 4*window.innerHeight/5;
   }
 }
 
