@@ -20,14 +20,15 @@ var start = function()
                         || navigator.webkitGetUserMedia
                         || navigator.mozGetUserMedia;
 
-  window.graph = document.querySelector('.graph');
-  window.graph_ctx = window.graph.getContext('2d');
   window.thickness_buffer = [];
+  window.running = true;
+  initialize_graph();
 
   navigator.getUserMedia({video:false,audio:true},function(stream)
   {
-    document.querySelector('.settings_panel').style.display = 'None';
-    document.querySelector('.stop_button').style.display = 'Inline';
+    document.querySelector('.settings_panel').style.display = 'none';
+    document.querySelector('.stop_button').style.display = 'inline';
+    window.graph.style.display = 'inline';
 
     IntensityThreshold = document.querySelector('.intenisty_threshold_box').value;
     FirstColorChangeThreshold = document.querySelector('.first_color_change_threshold_box').value;
@@ -39,9 +40,13 @@ var start = function()
     VeryThickColor = document.querySelector('.very_thick_color_box').value;
     document.cookie = 'TMSet='+ [SETTINGS_VERSION, IntensityThreshold, FirstColorChangeThreshold, SecondColorChangeThreshold, NumBins, RangeLimit, ThinColor, ThickColor, VeryThickColor].join(',');
 
-    window.ThinColor = color_str_to_rgb(ThinColor);
-    window.ThickColor = color_str_to_rgb(ThickColor);
-    window.VeryThickColor = color_str_to_rgb(VeryThickColor);
+    //window.ThinColor = color_str_to_rgb(ThinColor);
+    //window.ThickColor = color_str_to_rgb(ThickColor);
+    //window.VeryThickColor = color_str_to_rgb(VeryThickColor);
+    window.ThinColor = ThinColor;
+    window.ThickColor = ThickColor;
+    window.VeryThickColor = VeryThickColor;
+    
 
     var ctx = new AudioContext();
     var mic = ctx.createMediaStreamSource(stream);
@@ -64,7 +69,7 @@ var start = function()
           }
         }
         var thickness = Math.min(100, (100*peaks)/(RangeLimit*NumBins/300));
-        add_point_and_redraw_graph(thickness);
+        window.thickness_buffer.push(thickness);
 
         // Second prototype; included for reference
         /*var count = 0;
@@ -114,15 +119,23 @@ var start = function()
   }, console.log);
 }
 
-var add_point_and_redraw_graph = function(thickness)
+var initialize_graph = function()
 {
-  var thickness_buffer = window.thickness_buffer;
-  thickness_buffer.push(thickness);
+  var graph = document.querySelector('.graph');
+  window.graph = graph;
+  var ctx = window.graph.getContext('2d');
+  window.graph_ctx = ctx;
 
-  var graph = window.graph;
   graph.width = 2*window.innerWidth/3;
   graph.height = 2*window.innerHeight/3;
 
+  window.requestAnimationFrame(redraw_graph)
+}
+
+var redraw_graph = function()
+{
+  var graph = window.graph;
+  var thickness_buffer = window.thickness_buffer;
   while(thickness_buffer.length > graph.width)
   {
     thickness_buffer.shift();
@@ -131,32 +144,62 @@ var add_point_and_redraw_graph = function(thickness)
   var ctx = window.graph_ctx;
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, graph.width, graph.height);
-  
-  var data = ctx.getImageData(0, 0, graph.width, graph.height);
+
+  var last_color = null;
   for (var i=0; i<thickness_buffer.length; ++i)
   {
     var thickness = thickness_buffer[i];
-    var idx = (i + (graph.height-1-Math.round(graph.height*thickness/100)) * graph.width) * 4;
     var color = thickness < SecondColorChangeThreshold ? (thickness < FirstColorChangeThreshold ? ThinColor : ThickColor) : VeryThickColor;
+    var y = graph.height-1-Math.round(graph.height*thickness/100);
 
-    data.data[idx + 0] = color[0];
-    data.data[idx + 1] = color[1];
-    data.data[idx + 2] = color[2];
-    data.data[idx + 3] = 255;
+    if (color != last_color)
+    {
+      if (last_color)
+      {
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.moveTo(i, y);
+    }
+    else
+    {
+      ctx.lineTo(i, y);
+    }
+
+    last_color = color;
   }
 
-  ctx.putImageData(data, 0, 0);
+  if (last_color)
+  {
+    ctx.stroke();
+  }
+
+  if (window.running)
+  {
+    window.requestAnimationFrame(redraw_graph);
+  }
 }
 
 var stop = function()
 {
-  document.querySelector('.settings_panel').style.display = 'Inline';
+  window.graph.style.display = 'none';
+  document.querySelector('.settings_panel').style.display = 'inline';
   document.querySelector('.stop_button').style.display = 'None';
   window.stream.getTracks().forEach(function(track)
   {
     track.stop();
   });
   window.analyzer.stop();
+  window.running = false;
+}
+
+window.onresize = function()
+{
+  if (window.running)
+  {
+    initialize_graph();
+  }
 }
 
 window.onload = function()
@@ -234,6 +277,11 @@ a:visited
   color: #9D3EC9
 }
 
+.graph
+{
+  display: none;
+}
+
 .stop_button
 {
   display: none;
@@ -258,7 +306,7 @@ a:visited
   <input type='button' value='Start' onclick='start()'/>
 </div>
 <input class='stop_button' type='button' value='Stop' onclick='stop()'/><br><br>
-<canvas class='graph' width='0' height='0'></canvas>
+<canvas class='graph'></canvas>
 <h1>Help</h1>
 Thickness Meter is an app which can be used to roughly guage the thickness of your voice when talking. For best results, try to avoid background noise. See <a href='https://www.youtube.com/watch?v=1PNnBRBfOVY'>this video</a> if you're not already familiar with vocal thickness.<br><br>
 When you first start the app, you will be presented with the settings pane and a Start button. Press the Start button to save your settings and begin measuring thickness. Once started, the Start button will be replaced with a Stop button which can be used to stop the meter and return to the settings panel. While the meter is running, whenever you speak, a green bar will be shown. The bar will increase in length with the thickness of your voice i.e. a short bar will be shown for a thin voice and a long bar will be shown for a thick voice. If the thickness passes a threshold, the bar will change color from green to red. If the bar turns red frequently, this indicates that you are likely using a thicker voice, however, some syllables may cause it to flash red even when your voice is thin so only frequent, conistent flashing of red should be used as an indicator of thickness. Unvoiced sounds (those that don't vibrate the vocal cords) have an "infinite thickness" and may cause the meter to show a high thickness even if your voice is otherwise thin; only intances where the bar flashes on voiced sounds should be of concern. In English, the unvoiced sounds include S, F, Sh, C/K, T, Ch and P.<br><br>
