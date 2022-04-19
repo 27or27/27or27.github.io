@@ -29,6 +29,38 @@ var say = function(msg)
   speechSynthesis.speak(u);
 }
 
+var say_buffer_out_loud_if_speech_present = function(buffer, clear_buffer)
+{
+  var thin_count = 0, thick_count = 0, unvoiced_count = 0;
+  for (var i=thickness_buffer.length-1; i>0; --i)
+  {
+    if (thickness_buffer[i] >= SecondColorChangeThreshold)
+    {
+      ++unvoiced_count;
+    }
+    else if (thickness_buffer[i] >= FirstColorChangeThreshold)
+    {
+      ++thick_count;
+    }
+    else
+    {
+      ++thin_count;
+    }
+  }
+
+  if ((thick_count+unvoiced_count) > 0)
+  {
+    var total = thickness_buffer.length;
+    say((Math.round(((100*thin_count/total) + Number.EPSILON) * 100) / 100) + '% thin, ' +
+        (Math.round(((100*thick_count/total) + Number.EPSILON) * 100) / 100) + '% thick, ' +
+        (Math.round(((100*unvoiced_count/total) + Number.EPSILON) * 100) / 100) + '% unvoiced');
+    if (clear_buffer)
+    {
+      window.thickness_buffer = [];
+    }
+  }
+}
+
 var on_thickness_calculated_for_buffer = function(thickness)
 {
   if (!window.speaking)
@@ -41,31 +73,7 @@ var on_thickness_calculated_for_buffer = function(thickness)
     var thickness_buffer = window.thickness_buffer;
     if (thickness_buffer.slice(-Math.round(SecondsToWaitBeforeSayingResults*SAMPLE_RATE/BUFFER_SIZE)).every((i) => i==0))
     {
-      var thin_count = 0, thick_count = 0, unvoiced_count = 0;
-      for (var i=thickness_buffer.length-1; i>0; --i)
-      {
-        if (thickness_buffer[i] >= SecondColorChangeThreshold)
-        {
-          ++unvoiced_count;
-        }
-        else if (thickness_buffer[i] >= FirstColorChangeThreshold)
-        {
-          ++thick_count;
-        }
-        else
-        {
-          ++thin_count;
-        }
-      }
-
-      if ((thick_count+unvoiced_count) > 0)
-      {
-        var total = thickness_buffer.length;
-        window.thickness_buffer = [];
-        say((Math.round(((100*thin_count/total) + Number.EPSILON) * 100) / 100) + '% thin, ' +
-            (Math.round(((100*thick_count/total) + Number.EPSILON) * 100) / 100) + '% thick, ' +
-            (Math.round(((100*unvoiced_count/total) + Number.EPSILON) * 100) / 100) + '% unvoiced');
-      }
+      say_buffer_out_loud_if_speech_present(thickness_buffer, true);
     }
   }
 }
@@ -246,6 +254,10 @@ var pause = function()
   });
   window.analyzer.stop();
   window.running = false;
+  if (SayResultsOutLoud)
+  {
+    say_buffer_out_loud_if_speech_present(window.thickness_buffer, false);
+  }
 }
 
 var stop = function()
