@@ -8,6 +8,8 @@
 <script src='https://unpkg.com/meyda@5.3.0/dist/web/meyda.min.js'></script>
 <script>
 var SETTINGS_VERSION = 1;
+var BUFFER_SIZE = 256;
+var SAMPLE_RATE = 44100;
 
 var color_str_to_rgb = function (str)
 {
@@ -17,6 +19,56 @@ var color_str_to_rgb = function (str)
             parseInt(ctx.fillStyle.slice(3,5), 16),
             parseInt(ctx.fillStyle.slice(5), 16)];
 };
+
+var say = function(msg)
+{
+  var u = new SpeechSynthesisUtterance(msg);
+  u.onend = function(){ window.speaking = false; }
+  u.onerror = u.onend;
+  window.speaking = true;
+  speechSynthesis.speak(u);
+}
+
+var on_thickness_calculated_for_buffer = function(thickness)
+{
+  if (!window.speaking)
+  {
+    window.thickness_buffer.push(thickness);
+  }
+
+  if (SayResultsOutLoud && (thickness == 0))
+  {
+    var thickness_buffer = window.thickness_buffer;
+    if (thickness_buffer.slice(-Math.round(SecondsToWaitBeforeSayingResults*SAMPLE_RATE/BUFFER_SIZE)).every((i) => i==0))
+    {
+      var thin_count = 0, thick_count = 0, unvoiced_count = 0;
+      for (var i=thickness_buffer.length-1; i>0; --i)
+      {
+        if (thickness_buffer[i] >= SecondColorChangeThreshold)
+        {
+          ++unvoiced_count;
+        }
+        else if (thickness_buffer[i] >= FirstColorChangeThreshold)
+        {
+          ++thick_count;
+        }
+        else
+        {
+          ++thin_count;
+        }
+      }
+
+      if ((thick_count+unvoiced_count) > 0)
+      {
+        var total = thickness_buffer.length;
+        window.thickness_buffer = [];
+        say((Math.round(((100*thin_count/total) + Number.EPSILON) * 100) / 100) + '% thin, ' +
+            (Math.round(((100*thick_count/total) + Number.EPSILON) * 100) / 100) + '% thick, ' +
+            (Math.round(((100*unvoiced_count/total) + Number.EPSILON) * 100) / 100) + '% unvoiced');
+      }
+    }
+  }
+}
 
 var start = function()
 {
@@ -42,7 +94,10 @@ var start = function()
     ThinColor = document.querySelector('.thin_color_box').value;
     ThickColor = document.querySelector('.thick_color_box').value;
     VeryThickColor = document.querySelector('.very_thick_color_box').value;
-    document.cookie = 'TMSet='+ [SETTINGS_VERSION, IntensityThreshold, FirstColorChangeThreshold, SecondColorChangeThreshold, NumBins, RangeLimit, ThinColor, ThickColor, VeryThickColor].join(',');
+    SayResultsOutLoud = document.querySelector('.say_out_loud_box').checked;
+    SecondsToWaitBeforeSayingResults = document.querySelector('.seconds_to_wait_box').value;
+    document.cookie = 'TMSet='+ [SETTINGS_VERSION, IntensityThreshold, FirstColorChangeThreshold, SecondColorChangeThreshold, NumBins, RangeLimit,
+                                 ThinColor, ThickColor, VeryThickColor, SayResultsOutLoud|0, SecondsToWaitBeforeSayingResults].join(',');
 
     var ctx = new AudioContext();
     var mic = ctx.createMediaStreamSource(stream);
@@ -51,9 +106,11 @@ var start = function()
     window.analyzer = Meyda.createMeydaAnalyzer({
       audioContext: ctx,
       source: mic,
-      bufferSize: 256,
+      sampleRate: SAMPLE_RATE,
+      bufferSize: BUFFER_SIZE,
       featureExtractors: ['mfcc'],
-      callback: (features) => {
+      callback: function(features)
+      {
         var peaks = 0;
         var mels = features.mfcc;
         var max_range = (RangeLimit/100)*(mels.length-1);
@@ -65,7 +122,7 @@ var start = function()
           }
         }
         var thickness = Math.min(100, (100*peaks)/(RangeLimit*NumBins/300));
-        window.thickness_buffer.push(thickness);
+        on_thickness_calculated_for_buffer(thickness);
 
         // Second prototype; included for reference
         /*var count = 0;
@@ -131,9 +188,12 @@ var redraw_graph = function()
 {
   var graph = window.graph;
   var thickness_buffer = window.thickness_buffer;
-  while(thickness_buffer.length > graph.width)
+  if (!SayResultsOutLoud)
   {
-    thickness_buffer.shift();
+    while(thickness_buffer.length > graph.width)
+    {
+      thickness_buffer.shift();
+    }
   }
 
   var ctx = window.graph_ctx;
@@ -180,7 +240,7 @@ var stop = function()
 {
   window.graph.style.display = 'none';
   document.querySelector('.settings_panel').style.display = 'inline';
-  document.querySelector('.stop_button').style.display = 'None';
+  document.querySelector('.stop_button').style.display = 'none';
   window.stream.getTracks().forEach(function(track)
   {
     track.stop();
@@ -200,6 +260,7 @@ window.onresize = function()
 
 window.onload = function()
 {
+  // Defaults
   NumBins = 100;
   IntensityThreshold = -4;
   FirstColorChangeThreshold = 16.5;
@@ -208,6 +269,8 @@ window.onload = function()
   ThinColor = 'green';
   ThickColor = 'red';
   VeryThickColor = 'blue';
+  SayResultsOutLoud = false;
+  SecondsToWaitBeforeSayingResults = 3;
 
   var cookie = document.cookie;
   cookie = cookie.slice(cookie.indexOf('TMSet=')+6);
@@ -217,7 +280,7 @@ window.onload = function()
     cookie = cookie.slice(0, idx);
   }
   cookie = cookie.split(',');
-  if (cookie[0] == SETTINGS_VERSION && cookie.length == 9)
+  if (cookie[0] == SETTINGS_VERSION && cookie.length == 11)
   {
     IntensityThreshold = cookie[1];
     FirstColorChangeThreshold = cookie[2];
@@ -227,6 +290,8 @@ window.onload = function()
     ThinColor = cookie[6];
     ThickColor = cookie[7];
     VeryThickColor = cookie[8];
+    SayResultsOutLoud = !!parseInt(cookie[9]);
+    SecondsToWaitBeforeSayingResults = cookie[10];
   }
 
   document.querySelector('.num_bins_box').value = NumBins;
@@ -237,6 +302,8 @@ window.onload = function()
   document.querySelector('.thin_color_box').value = ThinColor;
   document.querySelector('.thick_color_box').value = ThickColor;
   document.querySelector('.very_thick_color_box').value = VeryThickColor;
+  document.querySelector('.say_out_loud_box').checked = SayResultsOutLoud;
+  document.querySelector('.seconds_to_wait_box').value = SecondsToWaitBeforeSayingResults;
 }
 
 var toggle_license = function()
@@ -299,13 +366,15 @@ a:visited
   Thin Color: <input type='text' class='thin_color_box'/><br><br>
   Thick Color: <input type='text' class='thick_color_box'/><br><br>
   Very Thick Color: <input type='text' class='very_thick_color_box'/><br><br>
+  Say Results Out Loud: <input type='checkbox' class='say_out_loud_box'/><br><br>
+  Seconds to Wait before Saying Results: <input type='text' class='seconds_to_wait_box'/><br><br>
   <input type='button' value='Start' onclick='start()'/>
 </div>
 <input class='stop_button' type='button' value='Stop' onclick='stop()'/><br><br>
 <canvas class='graph'></canvas>
 <h1>Help</h1>
 Thickness Meter is an app which can be used to roughly gauge the thickness of your voice when talking. For best results, try to avoid background noise. See <a href='https://www.youtube.com/watch?v=1PNnBRBfOVY'>this video</a> if you're not already familiar with vocal thickness.<br><br>
-When you first start the app, you will be presented with the settings panel and a Start button. Press the Start button to save your settings and begin measuring thickness. Once started, the Start button will be replaced with a Stop button which can be used to stop the meter and return to the settings panel. While the meter is running, a scrolling graph will be shown. As you speak, the thickness of your voice will be plotted on the graph. The vertical axis corresponds to thickness: lower equals thinner and higher equals thicker. The graph is divided into three color-coded bands. From bottom to top they are: green for thin voiced sounds, red for thick voiced sounds and blue for unvoiced sounds. Unvoiced sounds (those that don't vibrate the vocal cords) have an "infinite thickness" regardless of how thin your voice otherwise is. In English, the unvoiced sounds include S, F, Sh, C/K, T, Ch and P. When saying words that include unvoiced sounds, your thickness will pass through the red "thick" band as your voice transitions from between the voiced and unvoiced parts of the word. As such, seeing some red marks on the graph is normal even when you are using a thin voice. Only a large number of red marks or having red marks appear when making voiced sounds is an indicator of vocal thickness. Try using the meter with both a thin and a thick voice to see how each looks on the graph for your voice.<br><br>
+When you first start the app, you will be presented with the settings panel and a Start button. Press the Start button to save your settings and begin measuring thickness. Once started, the Start button will be replaced with a Stop button which can be used to stop the meter and return to the settings panel. While the meter is running, a scrolling graph will be shown. As you speak, the thickness of your voice will be plotted on the graph. The vertical axis corresponds to thickness: lower equals thinner and higher equals thicker. The graph is divided into three color-coded bands with a gap between each band. From bottom to top they are: green for thin voiced sounds, red for thick voiced sounds and blue for unvoiced sounds. Unvoiced sounds (those that don't vibrate the vocal cords) have an "infinite thickness" regardless of how thin your voice otherwise is. In English, the unvoiced sounds include S, F, Sh, C/K, T, Ch and P. When saying words that include unvoiced sounds, your thickness will pass through the red "thick" band as your voice transitions from between the voiced and unvoiced parts of the word. As such, seeing some red marks on the graph is normal even when you are using a thin voice. Only a large number of red marks or having red marks appear when making voiced sounds is an indicator of vocal thickness. Try using the meter with both a thin and a thick voice to see how each looks on the graph for your voice.<br><br>
 The meter may require some calibration for it to work with your voice and microphone. Start the meter and try saying "EEEEEE" for a few seconds with both a thin and thick voice. The line on the graph should be low and green when you are using a thin voice and higher and red when you use a thick voice. Then, try saying "SSSSSS". The line should be almost entirely in the blue band. The following settings are available from the settings panel:<br>
 <ul>
 <li>Intensity Threshold - Controls the max intensity for a frequency peak to be counted. If the line's height changes with the thickness of your voice, don't change this setting. If it doesn't, try slowly increasing and decreasing this value by smaller and smaller increments (e.g. 2, then 1, then 0.5, etc) until the line's height matches the thickness of your voice.</li>
@@ -316,6 +385,8 @@ The meter may require some calibration for it to work with your voice and microp
 <li>Thin Color - The color of the line when the meter hears a thin voice</li>
 <li>Thick Color - The color of the line when the meter hears a thick voice</li>
 <li>Very Thick Color - The color of the line when the meter hears a very thick voice i.e. when making unvoiced sounds.</li>
+<li>Say Results Out Loud - If this option is enabled, after you finish speaking, your thickness levels will be read back to you out loud using text-to-speech.</li>
+<li>Seconds to Wait before Saying Results - How many seconds the app will wait before reading back results if the "Say Results Out Loud" option is enabled.</li>
 </ul>
 You can use this app offline by saving a copy of it through your browser (Ctrl + S on most desktop browsers). The source for this app is contained within a single file and this app is open source; see below for licensing details.
 <br><br>
