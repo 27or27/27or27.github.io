@@ -84,6 +84,8 @@ var start = function()
   {
     document.querySelector('.settings_panel').style.display = 'none';
     document.querySelector('.stop_button').style.display = 'inline';
+    document.querySelector('.pause_button').style.display = 'inline';
+    document.querySelector('.pause_button').value = 'Pause';
     window.graph.style.display = 'inline';
 
     IntensityThreshold = document.querySelector('.intenisty_threshold_box').value;
@@ -236,17 +238,37 @@ var redraw_graph = function()
   }
 }
 
-var stop = function()
+var pause = function()
 {
-  window.graph.style.display = 'none';
-  document.querySelector('.settings_panel').style.display = 'inline';
-  document.querySelector('.stop_button').style.display = 'none';
   window.stream.getTracks().forEach(function(track)
   {
     track.stop();
   });
   window.analyzer.stop();
   window.running = false;
+}
+
+var stop = function()
+{
+  window.graph.style.display = 'none';
+  document.querySelector('.settings_panel').style.display = 'inline';
+  document.querySelector('.stop_button').style.display = 'none';
+  document.querySelector('.pause_button').style.display = 'none';
+  pause();
+}
+
+var on_start_pause_button = function(evt)
+{
+  var button = evt.target;
+  if (button.value == 'Pause')
+  {
+    pause();
+    button.value = 'Play';
+  }
+  else
+  {
+    start();
+  }
 }
 
 window.onresize = function()
@@ -350,6 +372,11 @@ a:visited
   display: none;
 }
 
+.pause_button
+{
+  display: none;
+}
+
 .license
 {
   display: none;
@@ -370,11 +397,12 @@ a:visited
   Seconds to Wait before Saying Results: <input type='text' class='seconds_to_wait_box'/><br><br>
   <input type='button' value='Start' onclick='start()'/>
 </div>
-<input class='stop_button' type='button' value='Stop' onclick='stop()'/><br><br>
+<input class='stop_button' type='button' value='Stop' onclick='stop()'/>
+<input class='pause_button' type='button' onclick='on_start_pause_button(event)'/><br><br>
 <canvas class='graph'></canvas>
 <h1>Help</h1>
 Thickness Meter is an app which can be used to roughly gauge the thickness of your voice when talking. For best results, try to avoid background noise. See <a href='https://www.youtube.com/watch?v=1PNnBRBfOVY'>this video</a> if you're not already familiar with vocal thickness.<br><br>
-When you first start the app, you will be presented with the settings panel and a Start button. Press the Start button to save your settings and begin measuring thickness. Once started, the Start button will be replaced with a Stop button which can be used to stop the meter and return to the settings panel. While the meter is running, a scrolling graph will be shown. As you speak, the thickness of your voice will be plotted on the graph. The vertical axis corresponds to thickness: lower equals thinner and higher equals thicker. The graph is divided into three color-coded bands with a gap between each band. From bottom to top they are: green for thin voiced sounds, red for thick voiced sounds and blue for unvoiced sounds. Unvoiced sounds (those that don't vibrate the vocal cords) have an "infinite thickness" regardless of how thin your voice otherwise is. In English, the unvoiced sounds include S, F, Sh, C/K, T, Ch and P. When saying words that include unvoiced sounds, your thickness will pass through the red "thick" band as your voice transitions from between the voiced and unvoiced parts of the word. As such, seeing some red marks on the graph is normal even when you are using a thin voice. Only a large number of red marks or having red marks appear when making voiced sounds is an indicator of vocal thickness. Try using the meter with both a thin and a thick voice to see how each looks on the graph for your voice.<br><br>
+When you first start the app, you will be presented with the settings panel and a Start button. Press the Start button to save your settings and begin measuring thickness. Once started, the Start button will be replaced with a Stop button which can be used to stop the meter and return to the settings panel. There is also a Pause button which can be used to Pause the app. While paused, the Pause button will change into a Play button which can be used to resume the app. While the meter is running, a scrolling graph will be shown. As you speak, the thickness of your voice will be plotted on the graph. The vertical axis corresponds to thickness: lower equals thinner and higher equals thicker. The graph is divided into three color-coded bands with a gap between each band. From bottom to top they are: green for thin voiced sounds, red for thick voiced sounds and blue for unvoiced sounds. Unvoiced sounds (those that don't vibrate the vocal cords) have an "infinite thickness" regardless of how thin your voice otherwise is. In English, the unvoiced sounds include S, F, Sh, C/K, T, Ch and P. When saying words that include unvoiced sounds, your thickness will pass through the red "thick" band as your voice transitions from between the voiced and unvoiced parts of the word. As such, seeing some red marks on the graph is normal even when you are using a thin voice. Only a large number of red marks or having red marks appear when making voiced sounds is an indicator of vocal thickness. Try using the meter with both a thin and a thick voice to see how each looks on the graph for your voice.<br><br>
 The meter may require some calibration for it to work with your voice and microphone. Start the meter and try saying "EEEEEE" for a few seconds with both a thin and thick voice. The line on the graph should be low and green when you are using a thin voice and higher and red when you use a thick voice. Then, try saying "SSSSSS". The line should be almost entirely in the blue band. The following settings are available from the settings panel:<br>
 <ul>
 <li>Intensity Threshold - Controls the max intensity for a frequency peak to be counted. If the line's height changes with the thickness of your voice, don't change this setting. If it doesn't, try slowly increasing and decreasing this value by smaller and smaller increments (e.g. 2, then 1, then 0.5, etc) until the line's height matches the thickness of your voice.</li>
