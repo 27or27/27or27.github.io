@@ -121,6 +121,16 @@ var start = function()
       featureExtractors: ['mfcc'],
       callback: function(features)
       {
+        // The current method for calculating thickness, the "peak counter" algorithm
+        // The frequencies of thick voices have a flat slope and the frequencies of thin voices have a steep slope
+        // Peaks, in this case, refers to frequencies with intensities greater than their neighbors
+        // Peak counter works by counting peaks that are above a user-specified threshold (IntensityThreshold)
+        // The thickness is returned as a percent [0,100] of the count over the total possible peaks
+        // As the slope of the frequencies decreases, more frequencies fall below the threshold causing the returned thickness to also drop
+        // This approach gives the most accurate approximation of the vocal frequency slope over other methods (that I've thought of)
+        // Real world audio data is messy, which makes isolating frequency peaks for vocals difficult
+        // Subharmonics, turbulence, background noise and other sounds can create their own series of peaks with their own slopes
+        // This makes more traditional forms of calculating slopes (e.g. linear regression) ineffective at calculating vocal thickness
         var peaks = 0;
         var mels = features.mfcc;
         var max_range = (RangeLimit/100)*(mels.length-1);
