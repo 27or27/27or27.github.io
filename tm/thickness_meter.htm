@@ -21,16 +21,16 @@ var color_str_to_rgb = function (str)
             parseInt(ctx.fillStyle.slice(5), 16)];
 };
 
-var say = function(msg)
+var tts_say = function(msg)
 {
   var u = new SpeechSynthesisUtterance(msg);
-  u.onend = function(){ window.speaking = false; }
+  u.onend = function(){ window.tts_speaking = false; }
   u.onerror = u.onend;
-  window.speaking = true;
+  window.tts_speaking = true;
   speechSynthesis.speak(u);
 }
 
-var say_buffer_out_loud_if_speech_present = function(buffer, clear_buffer)
+var tts_say_buffer_out_loud_if_speech_present = function(buffer, clear_buffer)
 {
   var thin_count = 0, thick_count = 0, unvoiced_count = 0;
   for (var i=thickness_buffer.length-1; i>0; --i)
@@ -52,7 +52,7 @@ var say_buffer_out_loud_if_speech_present = function(buffer, clear_buffer)
   if ((thick_count+unvoiced_count) > 0)
   {
     var total = thickness_buffer.length;
-    say((Math.round(((100*thin_count/total) + Number.EPSILON) * 100) / 100) + '% thin, ' +
+    tts_say((Math.round(((100*thin_count/total) + Number.EPSILON) * 100) / 100) + '% thin, ' +
         (Math.round(((100*thick_count/total) + Number.EPSILON) * 100) / 100) + '% thick, ' +
         (Math.round(((100*unvoiced_count/total) + Number.EPSILON) * 100) / 100) + '% unvoiced');
     if (clear_buffer)
@@ -64,7 +64,7 @@ var say_buffer_out_loud_if_speech_present = function(buffer, clear_buffer)
 
 var on_thickness_calculated_for_buffer = function(thickness)
 {
-  if (!window.speaking)
+  if (!window.tts_speaking)
   {
     window.thickness_buffer.push(thickness);
   }
@@ -74,7 +74,7 @@ var on_thickness_calculated_for_buffer = function(thickness)
     var thickness_buffer = window.thickness_buffer;
     if (thickness_buffer.slice(-Math.round(SecondsToWaitBeforeSayingResults*SAMPLE_RATE/BUFFER_SIZE)).every((i) => i==0))
     {
-      say_buffer_out_loud_if_speech_present(thickness_buffer, true);
+      tts_say_buffer_out_loud_if_speech_present(thickness_buffer, true);
     }
   }
 }
@@ -267,7 +267,7 @@ var pause = function()
   window.running = false;
   if (SayResultsOutLoud)
   {
-    say_buffer_out_loud_if_speech_present(window.thickness_buffer, false);
+    tts_say_buffer_out_loud_if_speech_present(window.thickness_buffer, false);
   }
 }
 
@@ -446,14 +446,14 @@ When you first start the app, you will be presented with the settings panel and 
 The meter may require some calibration for it to work with your voice and microphone. Start the meter and try saying "EEEEEE" for a few seconds with both a thin and thick voice. The line on the graph should be low and green when you are using a thin voice and higher and red when you use a thick voice. Then, try saying "SSSSSS". The line should be almost entirely in the blue band. The following settings are available from the settings panel:<br>
 <ul>
 <li>Intensity Threshold - Controls the max intensity for a frequency peak to be counted. If the line's height changes with the thickness of your voice, don't change this setting. If it doesn't, try slowly increasing and decreasing this value by smaller and smaller increments (e.g. 2, then 1, then 0.5, etc) until the line's height matches the thickness of your voice.</li>
-<li>First Color Change Threshold - Controls at what threshold the line's color changes from green to red. Can be any number between 0 and 100. Only change this if the line isn't turning red when you are using a thick voice or is turning red when you are using a thin voice for voiced sounds.</li>
-<li>Second Color Change Threshold - Controls when the bar changes color from red to blue. Can be any number between 0 and 100. Only change this if the bar isn't turning blue when you are making unvoiced sounds or if it is turning blue when you are making voiced sounds.
+<li>First Color Change Threshold - Sets the threshold for thin and thick voiced sound, the level where the line's color changes from green to red. Can be any number between 0 and 100. Only change this if the line isn't turning red when you are using a thick voice or is turning red when you are using a thin voice for voiced sounds.</li>
+<li>Second Color Change Threshold - Sets the threshold for thick voiced sounds and unvoiced sounds, there level where the bar changes color from red to blue. Can be any number between 0 and 100. Only change this if the bar isn't turning blue when you are making unvoiced sounds or if it is turning blue when you are making voiced sounds.
 <li>Number of Bins - Controls how many "bins" the frequency spectrum is broken into when processing sound. Only change this if changing the other options isn't working. Larger values may give more acurate results but will require more processing power from your device.</li>
 <li>Range Limit - Limits the max range of frequencies the meter will use. Can be any number from 0 to 100. The default value, 100, uses 100% of the frequency spectrum, efictivly disabling the limit. A value of 60 would use only the bottom 60%  of the spectrum. Voiced sounds primarily use the lower end of the frequency spectrum and unvoiced ones primarily use the upper end so this limit can be used to partially filter out unvoiced sounds but, as voiced and unvoiced sounds use overlapping frequencies, setting the value too high won't filter out all unvoiced sounds and setting it too low will filter out some voiced sounds. As such, this option is set to 100 to disable it by default.
 <li>Thin Color - The color of the line when the meter hears a thin voice</li>
 <li>Thick Color - The color of the line when the meter hears a thick voice</li>
 <li>Very Thick Color - The color of the line when the meter hears a very thick voice i.e. when making unvoiced sounds.</li>
-<li>Say Results Out Loud - If this option is enabled, after you finish speaking, your thickness levels will be read back to you out loud using text-to-speech.</li>
+<li>Say Results Out Loud - If this option is enabled, after you finish speaking, your thickness levels will be read back to you out loud using text-to-speech. Your levels will also be read back when you press Stop or Pause. When this option is enabled, the graph will not scroll, however, the app is still listening even if the line reaches the end of the graph.</li>
 <li>Seconds to Wait before Saying Results - How many seconds the app will wait before reading back results if the "Say Results Out Loud" option is enabled.</li>
 </ul>
 You can use this app offline by saving a copy of it through your browser (Ctrl + S on most desktop browsers). The source for this app is contained within a single file and this app is open source; see below for licensing details.
