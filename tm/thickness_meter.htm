@@ -226,7 +226,7 @@ var redraw_graph = function()
   {
     var thickness = thickness_buffer[i];
     var color = thickness < SecondColorChangeThreshold ? (thickness < FirstColorChangeThreshold ? ThinColor : ThickColor) : VeryThickColor;
-    var y = graph.height-1-Math.round(graph.height*thickness/100);
+    var y = graph.height-1-(graph.height*thickness/100);
 
     if (color != last_color)
     {
