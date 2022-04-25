@@ -344,6 +344,7 @@ window.onresize = function()
     x_axis.style.marginLeft = y_axis.clientWidth+'px';
 
     var legend = document.querySelector('.legend');
+    legend.style.maxWidth = graph_width + 'px';
     legend.style.marginLeft = Math.round((graph_width - legend.clientWidth) / 2) + 'px';
   }
 }
@@ -585,10 +586,12 @@ input[type=checkbox]
     <div class='line'></div><div class='label'>Time</div><div class='line'></div><div class='arrow'></div>
   </div><br>
   <div class='legend'>
-    Legend:
-    <div class='legend_box thin_box'></div>Thin/Light, Voiced
-    <div class='legend_box thick_box'></div>Thick/Heavy, Voiced
-    <div class='legend_box very_thick_box'></div>Very Thick/Heavy, Unvoiced
+    <span>Legend:</span>
+    <span>
+      <span><div class='legend_box thin_box'></div>Thin/Light, Voiced</span>
+      <span><div class='legend_box thick_box'></div>Thick/Heavy, Voiced</span>
+      <span><div class='legend_box very_thick_box'></div>Very Thick/Heavy, Unvoiced</span>
+    </span>
   </div>
 </div>
 <h1>Help</h1>
@@ -611,7 +614,7 @@ The meter may require some calibration for it to work with your voice and microp
 You can use this app offline by saving a copy of it through your browser (Ctrl + S on most desktop browsers). The source for this app is contained within a single file and this app is open source; see below for licensing details.
 <br><br>
 <h1>License</h1>
-Copyright (C) 2022
+Copyright (C) 2022<br><br>
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or any later version.<br><br>
 
