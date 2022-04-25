@@ -91,16 +91,17 @@ var compatible_getUserMedia = function(opt, done, error)
 var start = function()
 {
   window.thickness_buffer = [];
-  window.running = true;
-  initialize_graph();
 
   compatible_getUserMedia({video:false,audio:true},function(stream)
   {
     document.querySelector('.settings_panel').style.display = 'none';
+    document.querySelector('.graph_container').style.display = 'inline';
     document.querySelector('.stop_button').style.display = 'inline';
     document.querySelector('.pause_button').style.display = 'inline';
     document.querySelector('.pause_button').value = 'Pause';
-    window.graph.style.display = 'inline';
+
+    window.running = true;
+    initialize_graph();
 
     IntensityThreshold = document.querySelector('.intenisty_threshold_box').value;
     FirstColorChangeThreshold = document.querySelector('.first_color_change_threshold_box').value;
@@ -114,6 +115,10 @@ var start = function()
     SecondsToWaitBeforeSayingResults = document.querySelector('.seconds_to_wait_box').value;
     document.cookie = 'TMSet='+ [SETTINGS_VERSION, IntensityThreshold, FirstColorChangeThreshold, SecondColorChangeThreshold, NumBins, RangeLimit,
                                  ThinColor, ThickColor, VeryThickColor, SayResultsOutLoud|0, SecondsToWaitBeforeSayingResults].join(',');
+
+    document.querySelector('.thin_box').style.background = ThinColor;
+    document.querySelector('.thick_box').style.background = ThickColor;
+    document.querySelector('.very_thick_box').style.background = VeryThickColor;
 
     var ctx = new AudioContext();
     var mic = ctx.createMediaStreamSource(stream);
@@ -230,7 +235,8 @@ var redraw_graph = function()
   ctx.fillRect(0, 0, graph.width, graph.height);
 
   var last_color = null;
-  for (var i=0; i<thickness_buffer.length; ++i)
+  var x_offset = SayResultsOutLoud ? Math.max(thickness_buffer.length-graph.width,0) : 0;
+  for (var i=x_offset; i<thickness_buffer.length; ++i)
   {
     var thickness = thickness_buffer[i];
     var color = thickness < SecondColorChangeThreshold ? (thickness < FirstColorChangeThreshold ? ThinColor : ThickColor) : VeryThickColor;
@@ -244,11 +250,11 @@ var redraw_graph = function()
       }
       ctx.beginPath();
       ctx.strokeStyle = color;
-      ctx.moveTo(i, y);
+      ctx.moveTo(i-x_offset, y);
     }
     else
     {
-      ctx.lineTo(i, y);
+      ctx.lineTo(i-x_offset, y);
     }
 
     last_color = color;
@@ -281,8 +287,8 @@ var pause = function()
 
 var stop = function()
 {
-  window.graph.style.display = 'none';
   document.querySelector('.settings_panel').style.display = 'inline';
+  document.querySelector('.graph_container').style.display = 'none';
   document.querySelector('.stop_button').style.display = 'none';
   document.querySelector('.pause_button').style.display = 'none';
   pause();
@@ -306,8 +312,33 @@ window.onresize = function()
 {
   if (window.graph)
   {
-    graph.width = 4*window.innerWidth/5;
-    graph.height = 4*window.innerHeight/5;
+    var graph_width = Math.round(4*window.innerWidth/5);
+    var graph_height = Math.round(4*window.innerHeight/5);
+
+    graph.width = graph_width;
+    graph.height = graph_height;
+
+    var y_axis = document.querySelector('.y_axis');
+    y_axis.style.height = graph_height+'px';
+    // label.padding-left + label.padding-right + arrow.border-left = 18
+    var line_height = Math.round((graph_height - y_axis.querySelector('.label').clientHeight - 18) / 2);
+    for (line of y_axis.querySelectorAll('.line'))
+    {
+      line.style.height = line_height+'px';
+    }
+
+    var x_axis = document.querySelector('.x_axis');
+    x_axis.style.width = graph_width+'px';
+    // label.padding-left + label.padding-right + arrow.border-left = 18
+    var line_width = Math.round((graph_width - x_axis.querySelector('.label').clientWidth - 18) / 2);
+    for (line of x_axis.querySelectorAll('.line'))
+    {
+      line.style.width = line_width+'px';
+    }
+    x_axis.style.marginLeft = y_axis.clientWidth+'px';
+
+    var legend = document.querySelector('.legend');
+    legend.style.marginLeft = Math.round((graph_width - legend.clientWidth) / 2) + 'px';
   }
 }
 
@@ -410,7 +441,7 @@ input[type=checkbox]
   margin-left: 15px;
 }
 
-.graph
+.graph_container
 {
   display: none;
 }
@@ -428,6 +459,98 @@ input[type=checkbox]
 .license
 {
   display: none;
+}
+
+.graph
+{
+  display: inline-block;
+}
+
+.line
+{
+  background: #FFF;
+}
+
+.label
+{
+  padding: 5px;
+}
+
+.axis
+{
+  display: inline-block;
+}
+
+.axis div
+{
+  display: inline-block;
+}
+
+.x_axis div
+{
+  vertical-align: middle;
+}
+
+.y_axis div
+{
+  vertical-align: bottom;
+}
+
+.x_axis .line
+{
+  height: 1px;
+}
+
+.y_axis .line
+{
+  margin-left: 8px;
+  width: 1px;
+}
+
+.y_axis .label
+{
+  padding-left: 0;
+  writing-mode: vertical-lr;
+}
+
+.arrow
+{
+  width: 0;
+  height: 0;
+}
+
+.x_axis .arrow
+{
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 8px solid #FFF;
+}
+
+.y_axis .arrow
+{
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid #FFF;
+}
+
+.legend
+{
+  display: inline-block;
+  padding: 10px;
+}
+
+.legend *
+{
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.legend_box
+{
+  width: 16pt;
+  height: 16pt;
+  margin-left: 20pt;
+  margin-right: 5pt;
 }
 </style>
 </head>
@@ -447,9 +570,24 @@ input[type=checkbox]
 </div>
 <input class='stop_button' type='button' value='Stop' onclick='stop()'/>
 <input class='pause_button' type='button' onclick='on_start_pause_button(event)'/><br><br>
-<canvas class='graph'></canvas>
+<div class='graph_container'>
+  <div class='axis y_axis'>
+    <div class='arrow'></div><br><div class='line'></div><br><div class='label'>Thickness</div><br><div class='line'></div>
+  </div>
+  <canvas class='graph'></canvas><br>
+  <div class = 'axis x_axis'>
+    <div class='line'></div><div class='label'>Time</div><div class='line'></div><div class='arrow'></div>
+  </div><br>
+  <div class='legend'>
+    Legend:
+    <div class='legend_box thin_box'></div>Thin, Voiced
+    <div class='legend_box thick_box'></div>Thick, Voiced
+    <div class='legend_box very_thick_box'></div>Very Thick, Unvoiced
+  </div>
+</div>
 <h1>Help</h1>
 Thickness Meter is an app which can be used to roughly gauge the thickness of your voice when talking. For best results, try to avoid background noise. See <a href='https://www.youtube.com/watch?v=1PNnBRBfOVY'>this video</a> if you're not already familiar with vocal thickness.<br><br>
+TL;DR: Unvoiced sounds (sounds that don't vibrate your vocal cords) will always show up as thick on the meter. The thinner your voice is, the more it will show up in the green "thin" band and the thicker it is, the more it will show up in the red "thick" band but it is normal for your voice to not be perfectly in one band.<br><br>
 When you first start the app, you will be presented with the settings panel and a Start button. Press the Start button to save your settings and begin measuring thickness. Once started, the Start button will be replaced with a Stop button which can be used to stop the meter and return to the settings panel. There is also a Pause button which can be used to pause the app. While paused, the Pause button will change into a Play button which can be used to resume the app. While the meter is running, a scrolling graph will be shown. As you speak, the thickness of your voice will be plotted on the graph. The vertical axis corresponds to thickness: lower equals thinner and higher equals thicker. The graph is divided into three color-coded bands with a gap between each band. From bottom to top they are: green for thin voiced sounds, red for thick voiced sounds and blue for unvoiced sounds. Unvoiced sounds (those that don't vibrate the vocal cords) have an "infinite thickness" regardless of how thin your voice otherwise is. In English, the unvoiced sounds include S, F, Sh, C/K, T, Ch, Th, and P. When using a thin voice to say words that include unvoiced sounds, your thickness will pass through the red "thick" band as your voice transitions from between the voiced and unvoiced parts of the word. As such, seeing your voice be partially in the thick band is normal even when you are using a thin voice and seeing your voice partially be in the thin band is normal when using a thick voice. The ratio between the two indicates the thickness of your voice, particularly when saying voiced sounds. Try using the meter with both a thin and a thick voice to see how each looks on the graph for your voice.<br><br>
 The meter may require some calibration for it to work with your voice and microphone. Start the meter and try saying "EEEEEE" for a few seconds with both a thin and thick voice. The line on the graph should be low and green when you are using a thin voice and higher and red when you use a thick voice. Then, try saying "SSSSSS". The line should be almost entirely in the blue "unvoiced" band. The following settings are available from the settings panel:<br>
 <ul>
@@ -461,7 +599,7 @@ The meter may require some calibration for it to work with your voice and microp
 <li>Thin Color - The color of the line when the meter hears a thin voice</li>
 <li>Thick Color - The color of the line when the meter hears a thick voice</li>
 <li>Very Thick Color - The color of the line when the meter hears a very thick voice i.e. when making unvoiced sounds.</li>
-<li>Say Results Out Loud - If this option is enabled, after you finish speaking, your thickness levels will be read back to you out loud using text-to-speech. Your levels will also be read back when you press Stop or Pause. When this option is enabled, the graph will not scroll, however, the app is still listening even if the line reaches the end of the graph.</li>
+<li>Say Results Out Loud - If this option is enabled, after you finish speaking, your thickness levels will be read back to you out loud using text-to-speech. Your levels will also be read back when you press Stop or Pause.</li>
 <li>Seconds to Wait before Saying Results - How many seconds the app will wait before reading back results if the "Say Results Out Loud" option is enabled.</li>
 </ul>
 You can use this app offline by saving a copy of it through your browser (Ctrl + S on most desktop browsers). The source for this app is contained within a single file and this app is open source; see below for licensing details.
