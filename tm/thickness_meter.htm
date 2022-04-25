@@ -11,6 +11,7 @@
 var SETTINGS_VERSION = 1;
 var BUFFER_SIZE = 256;
 var SAMPLE_RATE = 44100;
+var MAX_THICKNESS_BUFFER_SIZE = Math.round(30*60*SAMPLE_RATE/BUFFER_SIZE); // 30 minutes worth of results
 
 var color_str_to_rgb = function (str)
 {
@@ -69,9 +70,14 @@ var on_thickness_calculated_for_buffer = function(thickness)
     window.thickness_buffer.push(thickness);
   }
 
+  var thickness_buffer = window.thickness_buffer;
+  if (thickness_buffer.length > MAX_THICKNESS_BUFFER_SIZE)
+  {
+    thickness_buffer.splice(0, thickness_buffer.length-MAX_THICKNESS_BUFFER_SIZE);
+  }
+
   if (SayResultsOutLoud && (thickness == 0))
   {
-    var thickness_buffer = window.thickness_buffer;
     if (thickness_buffer.slice(-Math.round(SecondsToWaitBeforeSayingResults*SAMPLE_RATE/BUFFER_SIZE)).every((i) => i==0))
     {
       tts_say_buffer_out_loud_if_speech_present(thickness_buffer, true);
@@ -85,7 +91,7 @@ var compatible_getUserMedia = function(opt, done, error)
   if (navigator.getUserMedia){ return navigator.getUserMedia(opt, done, error); }
   if (navigator.webkitGetUserMedia){ return navigator.webkitGetUserMedia(opt, done, error); }
   if (navigator.mozGetUserMedia){ return navigator.mozGetUserMedia(opt, done, error); }
-  alert("This app can't access your microphone due to your browser not supporting getUserMedia. If possible, try a different browser.");
+  alert("This app can't access your microphone due to your browser not supporting getUserMedia. If possible, update your browser or try a different browser.");
 }
 
 var start = function()
@@ -215,7 +221,7 @@ var initialize_graph = function()
 
   window.onresize();
 
-  window.requestAnimationFrame(redraw_graph)
+  window.requestAnimationFrame(redraw_graph);
 }
 
 var redraw_graph = function()
