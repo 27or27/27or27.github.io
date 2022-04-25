@@ -85,6 +85,17 @@ var start = function()
                         || navigator.webkitGetUserMedia
                         || navigator.mozGetUserMedia;
 
+  if (!navigator.getUserMedia && navigator.mediaDevices)
+  {
+    navigator.getUserMedia = navigator.mediaDevices.getUserMedia;
+  }
+
+  if (!navigator.getUserMedia)
+  {
+    alert("This app can't access your microphone due to your browser not supporting getUserMedia. If possible, try a different browser.");
+    return;
+  }
+
   window.thickness_buffer = [];
   window.running = true;
   initialize_graph();
