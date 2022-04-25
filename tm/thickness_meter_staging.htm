@@ -421,6 +421,7 @@ var on_recording_playing = function(evt)
   {
     pause();
     document.querySelector('.pause_button').disabled = true;
+    document.querySelector('.record_button').disabled = true;
 
     if (!window.recording_ctx)
     {
@@ -442,6 +443,7 @@ var on_recording_paused = function()
   var pause_button = document.querySelector('.pause_button');
   pause_button.value = 'Resume';
   pause_button.disabled = false;
+  document.querySelector('.record_button').disabled = false;
 }
 
 window.onresize = function()
