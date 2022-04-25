@@ -79,28 +79,22 @@ var on_thickness_calculated_for_buffer = function(thickness)
   }
 }
 
+var compatible_getUserMedia = function(opt, done, error)
+{
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia){ return navigator.mediaDevices.getUserMedia(opt).then(done).catch(error); }
+  if (navigator.getUserMedia){ return navigator.getUserMedia(opt, done, error); }
+  if (navigator.webkitGetUserMedia){ return navigator.webkitGetUserMedia(opt, done, error); }
+  if (navigator.mozGetUserMedia){ return navigator.mozGetUserMedia(opt, done, error); }
+  alert("This app can't access your microphone due to your browser not supporting getUserMedia. If possible, try a different browser.");
+}
+
 var start = function()
 {
-  navigator.getUserMedia = navigator.getUserMedia
-                        || navigator.webkitGetUserMedia
-                        || navigator.mozGetUserMedia;
-
-  if (!navigator.getUserMedia && navigator.mediaDevices)
-  {
-    navigator.getUserMedia = navigator.mediaDevices.getUserMedia;
-  }
-
-  if (!navigator.getUserMedia)
-  {
-    alert("This app can't access your microphone due to your browser not supporting getUserMedia. If possible, try a different browser.");
-    return;
-  }
-
   window.thickness_buffer = [];
   window.running = true;
   initialize_graph();
 
-  navigator.getUserMedia({video:false,audio:true},function(stream)
+  compatible_getUserMedia({video:false,audio:true},function(stream)
   {
     document.querySelector('.settings_panel').style.display = 'none';
     document.querySelector('.stop_button').style.display = 'inline';
