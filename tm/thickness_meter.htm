@@ -156,7 +156,7 @@ var start = function()
         }
         window.gauge.style.width = (100*count/NumBins)+'%';
         window.gauge.style.background = count < (ColorChangeThreshold*NumBins/100) ? ThinColor : ThickColor;*/
-        
+
         // First prototype; included for reference
         /*var spectrum = features.amplitudeSpectrum;
         var width = 0;
@@ -190,7 +190,10 @@ var start = function()
       },
     });
     analyzer.start();
-  }, console.log);
+  }, function(err)
+  {
+    alert("Couldn't access the microphone. Please make sure you select 'Allow' when asked if the page can access your microphone.\n\n" + err.name + ': ' + err.message)
+  });
 }
 
 var initialize_graph = function()
