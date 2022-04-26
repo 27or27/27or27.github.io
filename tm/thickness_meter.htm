@@ -33,6 +33,11 @@ var tts_say = function(msg)
 
 var tts_say_buffer_out_loud_if_speech_present = function(buffer, clear_buffer)
 {
+  if (window.recorder || window.running_state == 'RECORDING')
+  {
+    return;
+  }
+
   var thin_count = 0, thick_count = 0, unvoiced_count = 0;
   for (var i=thickness_buffer.length-1; i>0; --i)
   {
@@ -94,19 +99,109 @@ var compatible_getUserMedia = function(opt, done, error)
   alert("This app can't access your microphone due to your browser not supporting getUserMedia. If possible, update your browser or try a different browser.");
 }
 
-var start = function()
+var get_microphone_stream = function(callback)
+{
+  compatible_getUserMedia({video:false,audio:true}, callback, function(err)
+  {
+    alert("Couldn't access the microphone. Please make sure you select 'Allow' when asked if the page can access your microphone.\n\n" + err.name + ': ' + err.message)
+  });
+}
+
+var analyze_and_graph = function(ctx, source)
+{
+  window.audio_ctx = ctx;
+  window.source = source;
+  var analyzer = Meyda.createMeydaAnalyzer({
+    audioContext: ctx,
+    source: source,
+    sampleRate: SAMPLE_RATE,
+    bufferSize: BUFFER_SIZE,
+    featureExtractors: ['mfcc'],
+    callback: function(features)
+    {
+      // The current method for calculating thickness, the "peak counter" algorithm
+      // The frequencies of thick voices have a flat slope and the frequencies of thin voices have a steep slope
+      // Peaks, in this case, refers to frequencies with intensities greater than their neighbors
+      // Peak counter works by counting peaks that are above a user-specified threshold (IntensityThreshold)
+      // The thickness is returned as a percent [0,100] of the count over the total possible peaks
+      // As the slope of the frequencies decreases, more frequencies fall below the threshold causing the returned thickness to also drop
+      // This approach gives the most accurate approximation of the vocal frequency slope over other methods (that I've thought of)
+      // Real world audio data is messy, which makes isolating frequency peaks for vocals difficult
+      // Subharmonics, turbulence, background noise and other sounds can create their own series of peaks with their own slopes
+      // This makes more traditional forms of calculating slopes (e.g. linear regression) ineffective at calculating vocal thickness
+      var peaks = 0;
+      var mels = features.mfcc;
+      var max_range = (RangeLimit/100)*(mels.length-1);
+      for (var i=1; i<max_range; ++i)
+      {
+        if ((mels[i] < IntensityThreshold) && (mels[i] < mels[i-1]) && (mels[i] < mels[i+1]))
+        {
+          ++peaks;
+        }
+      }
+      var thickness = Math.min(100, (100*peaks)/(RangeLimit*NumBins/300));
+      on_thickness_calculated_for_buffer(thickness);
+
+      // Second prototype; included for reference
+      /*var count = 0;
+      for (mel of features.mfcc)
+      {
+        if (mel < IntensityThreshold)
+        {
+          ++count;
+        }
+      }
+      window.gauge.style.width = (100*count/NumBins)+'%';
+      window.gauge.style.background = count < (ColorChangeThreshold*NumBins/100) ? ThinColor : ThickColor;*/
+
+      // First prototype; included for reference
+      /*var spectrum = features.amplitudeSpectrum;
+      var width = 0;
+      var avg = 0;
+      for (amp of spectrum)
+      {
+        avg += amp;
+      }
+      avg /= spectrum.length;
+
+      var threshold = 5*avg;
+      var count = 0;
+      for (amp of spectrum)
+      {
+        if (amp > threshold)
+        {
+          ++count;
+        }
+      }
+      width = 100*count/spectrum.length;
+
+      window.gauge.style.width = width+'%';
+      if (width >= WTHRESH)
+      {
+        window.gauge.style.background = 'red';
+      }
+      else
+      {
+        window.gauge.style.background = 'green';
+      }*/
+    },
+  });
+  analyzer.start();
+  return analyzer;
+}
+
+var start = function(callback)
 {
   window.thickness_buffer = [];
 
-  compatible_getUserMedia({video:false,audio:true},function(stream)
+  get_microphone_stream(function(stream)
   {
     document.querySelector('.settings_panel').style.display = 'none';
     document.querySelector('.graph_container').style.display = 'inline';
-    document.querySelector('.stop_button').style.display = 'inline';
-    document.querySelector('.pause_button').style.display = 'inline';
     document.querySelector('.pause_button').value = 'Pause';
+    document.querySelector('.record_button').value = 'Record';
 
-    window.running = true;
+    window.running_state = 'LIVE';
     initialize_graph();
 
     IntensityThreshold = document.querySelector('.intenisty_threshold_box').value;
@@ -130,85 +225,12 @@ var start = function()
     var mic = ctx.createMediaStreamSource(stream);
     window.stream = stream;
     Meyda.numberOfMFCCCoefficients = NumBins;
-    window.analyzer = Meyda.createMeydaAnalyzer({
-      audioContext: ctx,
-      source: mic,
-      sampleRate: SAMPLE_RATE,
-      bufferSize: BUFFER_SIZE,
-      featureExtractors: ['mfcc'],
-      callback: function(features)
-      {
-        // The current method for calculating thickness, the "peak counter" algorithm
-        // The frequencies of thick voices have a flat slope and the frequencies of thin voices have a steep slope
-        // Peaks, in this case, refers to frequencies with intensities greater than their neighbors
-        // Peak counter works by counting peaks that are above a user-specified threshold (IntensityThreshold)
-        // The thickness is returned as a percent [0,100] of the count over the total possible peaks
-        // As the slope of the frequencies decreases, more frequencies fall below the threshold causing the returned thickness to also drop
-        // This approach gives the most accurate approximation of the vocal frequency slope over other methods (that I've thought of)
-        // Real world audio data is messy, which makes isolating frequency peaks for vocals difficult
-        // Subharmonics, turbulence, background noise and other sounds can create their own series of peaks with their own slopes
-        // This makes more traditional forms of calculating slopes (e.g. linear regression) ineffective at calculating vocal thickness
-        var peaks = 0;
-        var mels = features.mfcc;
-        var max_range = (RangeLimit/100)*(mels.length-1);
-        for (var i=1; i<max_range; ++i)
-        {
-          if ((mels[i] < IntensityThreshold) && (mels[i] < mels[i-1]) && (mels[i] < mels[i+1]))
-          {
-            ++peaks;
-          }
-        }
-        var thickness = Math.min(100, (100*peaks)/(RangeLimit*NumBins/300));
-        on_thickness_calculated_for_buffer(thickness);
+    window.analyzer = analyze_and_graph(ctx, mic);
 
-        // Second prototype; included for reference
-        /*var count = 0;
-        for (mel of features.mfcc)
-        {
-          if (mel < IntensityThreshold)
-          {
-            ++count;
-          }
-        }
-        window.gauge.style.width = (100*count/NumBins)+'%';
-        window.gauge.style.background = count < (ColorChangeThreshold*NumBins/100) ? ThinColor : ThickColor;*/
-
-        // First prototype; included for reference
-        /*var spectrum = features.amplitudeSpectrum;
-        var width = 0;
-        var avg = 0;
-        for (amp of spectrum)
-        {
-          avg += amp;
-        }
-        avg /= spectrum.length;
-
-        var threshold = 5*avg;
-        var count = 0;
-        for (amp of spectrum)
-        {
-          if (amp > threshold)
-          {
-            ++count;
-          }
-        }
-        width = 100*count/spectrum.length;
-
-        window.gauge.style.width = width+'%';
-        if (width >= WTHRESH)
-        {
-          window.gauge.style.background = 'red';
-        }
-        else
-        {
-          window.gauge.style.background = 'green';
-        }*/
-      },
-    });
-    analyzer.start();
-  }, function(err)
-  {
-    alert("Couldn't access the microphone. Please make sure you select 'Allow' when asked if the page can access your microphone.\n\n" + err.name + ': ' + err.message)
+    if (callback)
+    {
+      callback();
+    }
   });
 }
 
@@ -271,7 +293,7 @@ var redraw_graph = function()
     ctx.stroke();
   }
 
-  if (window.running)
+  if (window.running_state)
   {
     window.requestAnimationFrame(redraw_graph);
   }
@@ -279,12 +301,29 @@ var redraw_graph = function()
 
 var pause = function()
 {
-  window.stream.getTracks().forEach(function(track)
+  if (window.stream)
   {
-    track.stop();
-  });
-  window.analyzer.stop();
-  window.running = false;
+    window.stream.getTracks().forEach(function(track)
+    {
+      track.stop();
+    });
+  }
+
+  if (window.analyzer)
+  {
+    window.analyzer.stop();
+
+    // HACK HACK HACK
+    // monkey patch Meyda so it doesn't leak
+    // browsers leak this handler for some reason even when there are no refs to spn
+    window.analyzer._m.spn.onaudioprocess = null;
+  }
+
+  window.analyzer = null;
+  window.audio_ctx = null;
+  window.source = null;
+  window.running_state = false;
+
   if (SayResultsOutLoud)
   {
     tts_say_buffer_out_loud_if_speech_present(window.thickness_buffer, false);
@@ -295,9 +334,14 @@ var stop = function()
 {
   document.querySelector('.settings_panel').style.display = 'inline';
   document.querySelector('.graph_container').style.display = 'none';
-  document.querySelector('.stop_button').style.display = 'none';
-  document.querySelector('.pause_button').style.display = 'none';
   pause();
+  stop_recording();
+
+  var player = document.querySelector('audio');
+  if (!player.paused)
+  {
+    player.pause();
+  }
 }
 
 var on_start_pause_button = function(evt)
@@ -306,12 +350,100 @@ var on_start_pause_button = function(evt)
   if (button.value == 'Pause')
   {
     pause();
-    button.value = 'Play';
+    button.value = 'Resume';
   }
   else
   {
     start();
   }
+}
+
+var do_record = function()
+{
+  var player = document.querySelector('audio');
+  var pause_button = document.querySelector('.pause_button');
+  var recorder = new MediaRecorder(window.stream);
+  recorder.ondataavailable = function(event)
+  {
+    var url = URL.createObjectURL(event.data);
+    document.querySelector('audio').src = url;
+    pause_button.disabled = false;
+    player.style.display = 'inline';
+    window.recorder = null;
+  };
+  pause_button.disabled = true;
+  player.style.display = 'none';
+  recorder.start();
+  window.recorder = recorder;
+  document.querySelector('.record_button').value = 'Stop Recording';
+}
+
+var record = function()
+{
+  if (!window.running_state)
+  {
+    start(function()
+    {
+      do_record();
+    });
+  }
+  else
+  {
+    do_record();
+  }
+}
+
+var stop_recording = function()
+{
+  document.querySelector('.record_button').value = 'Record';
+  if (window.recorder)
+  {
+    window.recorder.stop();
+  }
+}
+
+var on_toggle_record = function(evt)
+{
+  var button = evt.target;
+  if (button.value == 'Record')
+  {
+    record();
+  }
+  else
+  {
+    stop_recording();
+  }
+}
+
+var on_recording_playing = function(evt)
+{
+  if (window.running_state != 'RECORDING')
+  {
+    pause();
+    document.querySelector('.pause_button').disabled = true;
+    document.querySelector('.record_button').disabled = true;
+
+    if (!window.recording_ctx)
+    {
+      window.recording_ctx = new AudioContext();
+      window.recording_source = window.recording_ctx.createMediaElementSource(evt.target);
+      window.recording_source.connect(window.recording_ctx.destination);
+    }
+
+    window.thickness_buffer = [];
+    window.running_state = 'RECORDING';
+    window.analyzer = analyze_and_graph(window.recording_ctx, window.recording_source);
+    window.requestAnimationFrame(redraw_graph);
+  }
+}
+
+var on_recording_paused = function()
+{
+  pause();
+  var pause_button = document.querySelector('.pause_button');
+  pause_button.value = 'Resume';
+  pause_button.disabled = false;
+  document.querySelector('.record_button').disabled = false;
 }
 
 window.onresize = function()
@@ -440,6 +572,7 @@ input[type=button]
   padding-top: 10px;
   padding-bottom: 10px;
   margin-right: 20px;
+  margin-bottom: 10px;
 }
 
 input[type=checkbox]
@@ -448,17 +581,13 @@ input[type=checkbox]
   margin-left: 15px;
 }
 
+audio
+{
+  display: none;
+  vertical-align: middle;
+}
+
 .graph_container
-{
-  display: none;
-}
-
-.stop_button
-{
-  display: none;
-}
-
-.pause_button
 {
   display: none;
 }
@@ -575,9 +704,11 @@ input[type=checkbox]
   Seconds to Wait before Saying Results: <input type='text' class='seconds_to_wait_box'/><br><br>
   <input type='button' value='Start' onclick='start()'/>
 </div>
-<input class='stop_button' type='button' value='Stop' onclick='stop()'/>
-<input class='pause_button' type='button' onclick='on_start_pause_button(event)'/><br><br>
 <div class='graph_container'>
+  <input class='stop_button' type='button' value='Stop' onclick='stop()'/>
+  <input class='pause_button' type='button' onclick='on_start_pause_button(event)'/>
+  <input class='record_button' type='button' onclick='on_toggle_record(event)'/>
+  <audio controls onplay='on_recording_playing(event)' onplaying='on_recording_playing(event)' onpause='on_recording_paused()'></audio><br><br>
   <div class='axis y_axis'>
     <div class='arrow'></div><br><div class='line'></div><br><div class='label'>Thickness / Weight</div><br><div class='line'></div>
   </div>
@@ -597,7 +728,8 @@ input[type=checkbox]
 <h1>Help</h1>
 Thickness Meter is an app which can be used to roughly gauge the thickness (aka weight) of your voice when talking. For best results, try to avoid background noise. See <a href='https://www.youtube.com/watch?v=1PNnBRBfOVY'>this video</a> if you're not already familiar with vocal thickness.<br><br>
 <b>TL;DR</b>: Unvoiced sounds (sounds that don't vibrate your vocal cords) will always show up as thick/heavy on the meter. The thinner/lighter your voice is, the more it will show up in the green "thin" band and the thicker/heavier it is, the more it will show up in the red "thick" band but it is normal for your voice to not be perfectly in one band.<br><br>
-When you first start the app, you will be presented with the settings panel and a Start button. Press the Start button to save your settings and begin measuring thickness. Once started, the Start button will be replaced with a Stop button which can be used to stop the meter and return to the settings panel. There is also a Pause button which can be used to pause the app. While paused, the Pause button will change into a Play button which can be used to resume the app. While the meter is running, a scrolling graph will be shown. As you speak, the thickness of your voice will be plotted on the graph. The vertical axis corresponds to thickness: lower equals thinner and higher equals thicker. The graph is divided into three color-coded bands with a gap between each band. From bottom to top they are: green for thin voiced sounds, red for thick voiced sounds and blue for unvoiced sounds. Unvoiced sounds (those that don't vibrate the vocal cords) have an "infinite thickness" regardless of how thin your voice otherwise is. In English, the unvoiced sounds include S, F, Sh, C/K, T, Ch, Th, and P. When using a thin voice to say words that include unvoiced sounds, your thickness will pass through the red "thick" band as your voice transitions from between the voiced and unvoiced parts of the word. As such, seeing your voice be partially in the thick band is normal even when you are using a thin voice and seeing your voice partially be in the thin band is normal when using a thick voice. The ratio between the two indicates the thickness of your voice, particularly when saying voiced sounds. Try using the meter with both a thin and a thick voice to see how each looks on the graph for your voice.<br><br>
+When you first start the app, you will be presented with the settings panel and a Start button. Press the Start button to save your settings and begin measuring thickness. Once started, the Start button will be replaced with a Stop button which can be used to stop the meter and return to the settings panel. There is also a Pause button which can be used to pause the app. While paused, the Pause button will change into a Resume button which can be used to resume the app. Next to the Pause button is a record button which can be used to record your voice. Once you have made a recording, a player will appear next to the button which can be used to replay your recording and to see your results on the graph.<br><br>
+While the meter is running, a scrolling graph will be shown. As you speak, the thickness of your voice will be plotted on the graph. The vertical axis corresponds to thickness: lower equals thinner and higher equals thicker. The graph is divided into three color-coded bands with a gap between each band. From bottom to top they are: green for thin voiced sounds, red for thick voiced sounds and blue for unvoiced sounds. Unvoiced sounds (those that don't vibrate the vocal cords) have an "infinite thickness" regardless of how thin your voice otherwise is. In English, the unvoiced sounds include S, F, Sh, C/K, T, Ch, Th, and P. When using a thin voice to say words that include unvoiced sounds, your thickness will pass through the red "thick" band as your voice transitions from between the voiced and unvoiced parts of the word. As such, seeing your voice be partially in the thick band is normal even when you are using a thin voice and seeing your voice partially be in the thin band is normal when using a thick voice. The ratio between the two indicates the thickness of your voice, particularly when saying voiced sounds. Try using the meter with both a thin and a thick voice to see how each looks on the graph for your voice.<br><br>
 The meter may require some calibration for it to work with your voice and microphone. Start the meter and try saying "EEEEEE" for a few seconds with both a thin and thick voice. The line on the graph should be low and green when you are using a thin voice and higher and red when you use a thick voice. Then, try saying "SSSSSS". The line should be almost entirely in the blue "unvoiced" band. The following settings are available from the settings panel:<br>
 <ul>
 <li>Intensity Threshold - Controls the max intensity for a frequency peak to be counted. If the line's height changes with the thickness of your voice, don't change this setting. If it doesn't, try slowly increasing and decreasing this value by smaller and smaller increments (e.g. 2, then 1, then 0.5, etc) until the line's height matches the thickness of your voice.</li>
