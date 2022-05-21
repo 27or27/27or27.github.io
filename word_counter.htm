@@ -1,0 +1,54 @@
+<html>
+<head>
+<title>Word Counter Prototype</title>
+<script>
+// -= Notes =-
+// Scores above 5.3 syllables per second may indicate the existence of cluttering
+// 1.66 syllables per word on average
+// 5.3 sps = 190.8 wpm
+
+var now = function()
+{
+  return (new Date()).getTime();
+}
+var clicky = function()
+{
+  var recognizer = new window.webkitSpeechRecognition();
+  recognizer.onspeechstart = function()
+  {
+    window.start_time = now();
+  }
+  recognizer.onresult = (event) =>
+  {
+    var t = event.results[0][0].transcript;
+    console.log(t.split(' '));
+    var word_count = t.split(' ').length;
+    var minutes = (now() - window.start_time)/(60*1000);
+    var wpm = word_count/minutes;
+    document.querySelector('.result').innerText = wpm + ' word(s) per minute'
+    clicky();
+  }
+  recognizer.onerror = function(e)
+  {
+    console.log(e);
+    clicky();
+  }
+  recognizer.onend = function(e)
+  {
+    console.log(e);
+    //clicky;
+  }
+  recognizer.start();
+}
+</script>
+<style>
+.result
+{
+  font-size: 45pt;
+}
+</style>
+</head>
+<body onclick='clicky()'>
+<div class='result'>Click anywhere in the page to start then talk</div>
+</body>
+</html>
