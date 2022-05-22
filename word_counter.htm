@@ -33,11 +33,7 @@ var clicky = function()
     console.log(e);
     clicky();
   }
-  recognizer.onend = function(e)
-  {
-    console.log(e);
-    clicky();
-  }
+  recognizer.onnomatch = recognizer.onerror;
   recognizer.start();
 }
 </script>
@@ -49,6 +45,6 @@ var clicky = function()
 </style>
 </head>
 <body onclick='clicky()'>
-<div class='result'>R1 - Click anywhere in the page to start then talk</div>
+<div class='result'>R2 - Click anywhere in the page to start then talk</div>
 </body>
 </html>
