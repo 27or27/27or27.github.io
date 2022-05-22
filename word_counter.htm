@@ -13,28 +13,39 @@ var now = function()
 }
 var clicky = function()
 {
-  var recognizer = new window.webkitSpeechRecognition();
-  recognizer.onspeechstart = function()
+  if (!window.recognizer)
   {
-    window.start_time = now();
+    var recognizer = new window.webkitSpeechRecognition();
+    recognizer.onspeechstart = function()
+    {
+      window.start_time = now();
+    }
+    recognizer.onresult = (event) =>
+    {
+      var t = event.results[0][0].transcript;
+      console.log(t.split(' '));
+      var word_count = t.split(' ').length;
+      var minutes = (now() - window.start_time)/(60*1000);
+      var wpm = word_count/minutes;
+      document.querySelector('.result').innerText = wpm + ' word(s) per minute'
+      //clicky();
+    }
+    recognizer.onend = function(event)
+    {
+      console.log(event);
+      recognizer.start();
+    }
+    recognizer.onerror = recognizer.onend;
+    window.recognizer = recognizer;
   }
-  recognizer.onresult = (event) =>
+  try
   {
-    var t = event.results[0][0].transcript;
-    console.log(t.split(' '));
-    var word_count = t.split(' ').length;
-    var minutes = (now() - window.start_time)/(60*1000);
-    var wpm = word_count/minutes;
-    document.querySelector('.result').innerText = wpm + ' word(s) per minute'
-    //clicky();
-  }
-  recognizer.onend = function(event)
-  {
-    console.log(event);
     recognizer.start();
   }
-  recognizer.onerror = recognizer.onend
-  recognizer.start();
+  catch(err)
+  {
+    console.log(err);
+  }
 }
 </script>
 <style>
@@ -45,6 +56,6 @@ var clicky = function()
 </style>
 </head>
 <body onclick='clicky()'>
-<div class='result'>R3 - Click anywhere in the page to start then talk</div>
+<div class='result'>Click anywhere in the page to start then talk</div>
 </body>
 </html>
