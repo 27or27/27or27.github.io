@@ -37,9 +37,10 @@ var clicky = function()
     recognizer.onresult = (event) =>
     {
       var t = event.results[0][0].transcript;
-      console.log(t.split(' '));
+      var words = t.split(' ');
       var word_count = t.split(' ').length;
       var minutes = (now() - window.start_time)/(60*1000);
+      console.log('Word Count:', word_count, 'Minutes:', minutes, words);
       var wpm = word_count/minutes;
       document.querySelector('.result').innerText = wpm + ' word(s) per minute';
     }
