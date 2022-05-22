@@ -26,7 +26,7 @@ var clicky = function()
     var minutes = (now() - window.start_time)/(60*1000);
     var wpm = word_count/minutes;
     document.querySelector('.result').innerText = wpm + ' word(s) per minute'
-    clicky();
+    //clicky();
   }
   recognizer.onerror = function(e)
   {
@@ -36,7 +36,7 @@ var clicky = function()
   recognizer.onend = function(e)
   {
     console.log(e);
-    //clicky;
+    clicky();
   }
   recognizer.start();
 }
@@ -49,6 +49,6 @@ var clicky = function()
 </style>
 </head>
 <body onclick='clicky()'>
-<div class='result'>Click anywhere in the page to start then talk</div>
+<div class='result'>R1 - Click anywhere in the page to start then talk</div>
 </body>
 </html>
