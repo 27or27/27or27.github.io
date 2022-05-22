@@ -11,6 +11,20 @@ var now = function()
 {
   return (new Date()).getTime();
 }
+var start_recognition = function()
+{
+  if (window.recognizer)
+  {
+    try
+    {
+      window.recognizer.start();
+    }
+    catch(err)
+    {
+      console.log(err);
+    }
+  }
+}
 var clicky = function()
 {
   if (!window.recognizer)
@@ -27,25 +41,17 @@ var clicky = function()
       var word_count = t.split(' ').length;
       var minutes = (now() - window.start_time)/(60*1000);
       var wpm = word_count/minutes;
-      document.querySelector('.result').innerText = wpm + ' word(s) per minute'
-      //clicky();
+      document.querySelector('.result').innerText = wpm + ' word(s) per minute';
     }
     recognizer.onend = function(event)
     {
       console.log(event);
-      recognizer.start();
+      start_recognition();
     }
     recognizer.onerror = recognizer.onend;
     window.recognizer = recognizer;
   }
-  try
-  {
-    window.recognizer.start();
-  }
-  catch(err)
-  {
-    console.log(err);
-  }
+  start_recognition();
 }
 </script>
 <style>
