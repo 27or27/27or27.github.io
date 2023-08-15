@@ -1,0 +1,66 @@
+<html>
+<head>
+<title>Transcriber</title>
+<script>
+var sleep = function(e)
+{
+  return new Promise((t,n)=>{window.setTimeout(t,e)})
+}
+
+var say = function(e)
+{
+  return new Promise((t,n)=>
+  {
+    var o = new SpeechSynthesisUtterance(e);
+    o.onend=(()=>t()),o.onerror=(()=>n()),speechSynthesis.speak(o)
+  })
+}
+
+var listen = function()
+{
+  return new Promise((e,t)=>
+  {
+    window.stt_recognizer=!0;
+    var n = new window.webkitSpeechRecognition;
+    window.stt_recognizer = n;
+    n.complete=!1;
+    n.onresult=(t=>
+    {
+      var o = t.results[0][0].transcript;
+      n.complete=!0;
+      n.stop();
+      e(o);
+    })
+    n.onerror=(e=>
+    {
+      console.log(e);
+      n.onend();
+    });
+    n.onend=(e=>{n.complete||n.start()});
+    n.start();
+  });
+}
+
+var insertTextAtCaret = function(e)
+{
+  window.getSelection ? (sel=window.getSelection(),sel.getRangeAt&&sel.rangeCount&&(range=sel.getRangeAt(0),range.deleteContents(),range.insertNode(document.createTextNode(e)),range.setStart(document.activeElement,range.endOffset))):document.selection&&document.selection.createRange&&(document.selection.createRange().text=e)
+}
+  
+var append_to_texarea = function(t)
+{
+  var txt = document.querySelector('textarea');
+  txt.value += t;
+}
+
+var toggle = async function()
+{
+  if(window.stt_recognizer)window.stt_recognizer.complete=!0,window.stt_recognizer.abort(),window.stt_recognizer=!1,say("Stopping speech to text");else{say("Starting speech to text"),await sleep(2e3);do{append_to_texarea((await listen()).trim()+" ")}while(window.stt_recognizer)}
+}
+</script>
+</head>
+<body>
+<textarea></textarea>
+<br><br>
+<input type='button' value='Toggle Listening' onclick='toggle()'></input>
+</body>
+</html>
